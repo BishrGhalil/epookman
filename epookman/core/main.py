@@ -8,8 +8,9 @@
 import curses
 import pdb
 from sys import argv
+import logging
 
-from epookman.core.epookman import Pookman
+from epookman.core.epookman import Epookman
 
 
 class Main(object):
@@ -20,23 +21,25 @@ class Main(object):
         curses.use_default_colors()
         curses.curs_set(0)
 
-        # FIXMEEE: books from deleted directory still exist
-        global debug
-        if debug:
-            pdb.set_trace()
-
-        app = Pookman(self.screen)
+        app = Epookman(self.screen)
+        logging.debug("Created Epookman object")
 
         dirs = [
             "/home/bishr/Documents/Books/Novels",
-            "/home/bishr/Documents/Books/Programming"
+            "/home/bishr/Documents/Books/Programming",
+            "/home/bishr/Documents/Books/Linux",
         ]
 
+        app.addirs(dirs)
+        logging.debug("Added dirs to Epookman")
+        app.scane()
+        logging.debug("Scaned dirs")
         app.main()
 
 
 def main():
-    global debug
-    debug = "-d" in argv or "--debug" in argv
-    curses.wrapper(Main)
-
+    try:
+        curses.wrapper(Main)
+    except Exception as e:
+        logging.error(e)
+        exit(1)

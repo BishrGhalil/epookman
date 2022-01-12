@@ -5,6 +5,7 @@
 # License: MIT, see the file "LICENCS" for details.
 
 import curses
+import logging
 import os
 import re
 import sqlite3
@@ -13,21 +14,11 @@ from curses import panel
 
 import magic
 
-from epookman.api.curses_menus import *
 from epookman.api.dirent import Dirent
+from epookman.api.mime import T_EBOOK, Mime
+from epookman.core.curses_menus import *
 
 ebook_reader = "zathura"
-
-
-def pm_error(msg):
-    sys.stderr.write("ERROR: %s\n" % msg)
-
-
-def pm_exit_error(msg):
-    if msg:
-        pm_error(msg)
-
-    exit(1)
 
 
 class Ebook():
@@ -66,51 +57,63 @@ class Ebook():
         cmd = "%s \"%s\" > /dev/null 2>&1" % (ebook_reader, uri)
         if not os.system(cmd):
             msg = "Couldn't open %s" % uri
-            pm_error(msg)
+            logging.error(msg)
 
 
-class Pookman(object):
+class Epookman(object):
 
     def __init__(self, stdscreen):
         self.db_name = "pookman.db"
         self.db_path = os.path.join(os.getenv("HOME"), self.db_name)
+        logging.debug("Initialized db name to %s and db path to %s",
+                      self.db_name, self.db_path)
 
         self.conn = None
         self.cur = None
 
         self.connect()
+        logging.debug("Made connection to the database")
 
         self.create_tables_sql()
+        logging.debug("Tables created")
 
         self.dirs = self.fetch_dirs()
+        logging.debug("Fetched dirs from database")
         self.ebooks = self.fetch_ebooks()
-
-        # re pattern for supported ebooks types
-        self.ebooks_types = "pdf|epub|mobi|azw"
+        logging.debug("Fetched ebooks from database")
+        self.ebooks_files = [
+            os.path.join(ebook.folder, ebook.name) for ebook in self.ebooks
+        ]
+        logging.debug("Making ebooks_files list from ebooks list")
 
         self.main_menu = None
         self.screen = stdscreen
-        self.make_menus()
+        logging.debug("Initialized curses menus")
 
     def __del__(self):
         self.close_connection()
+        logging.debug("Connection closed after deleting object")
 
     def addir(self, Dir):
         if isinstance(Dir, Dirent) and Dir not in self.dirs:
             self.dirs.append(Dir)
+            logging.debug("Added dir %s to object dirs", Dir.path)
 
         else:
-            pm_error("Not a valid Dirent object")
+            logging.error("Not a valid Dirent object %s", Dir)
 
     def addirs(self, uris):
         if not isinstance(uris, list) and not isinstance(uris, tuple):
-            pm_error("Not a valid list or tuple")
+            logging.error("Not a valid list or tuple")
         else:
             for uri in uris:
+                logging.debug("Trying to create Dirent object from Dir %s",
+                              uri)
                 Dir = Dirent(uri)
                 self.addir(Dir)
 
             self.commit_dirs_sql()
+            logging.debug("Commited dirs to database")
 
     def close_connection(self):
         if self.conn:
@@ -125,27 +128,34 @@ class Pookman(object):
                 "PATH           TEXT NOT NULL," \
                 "RECURS         INT NOT NULL);"
         )
+        logging.debug("Table DIRS Created")
 
         self.cur.execute(
-                "CREATE TABLE IF NOT EXISTS BOOKS(" \
-                "ID INTEGER PRIMARY KEY AUTOINCREMENT," \
-                "FOLDER         TEXT    NOT NULL," \
+                "CREATE TABLE IF NOT EXISTS BOOKS(" "ID INTEGER PRIMARY KEY AUTOINCREMENT," "FOLDER         TEXT    NOT NULL," \
                 "NAME           TEXT    NOT NULL," \
                 "CATEGORY       TEXT," \
                 "STATUS         INT," \
                 "FAV            INT);")
 
+        logging.debug("Table Books Created")
+
         self.cur.execute("CREATE INDEX IF NOT EXISTS idx_fav ON BOOKS (FAV);")
+        logging.debug("Index on BOOKS (FAV) Created")
 
         self.cur.execute(
             "CREATE INDEX IF NOT EXISTS idx_category ON BOOKS (CATEGORY);")
+        logging.debug("Index on BOOKS (CATEGORY) Created")
+
         self.cur.execute(
             "CREATE INDEX IF NOT EXISTS idx_status ON BOOKS (STATUS);")
+        logging.debug("Index on BOOKS (STATUS) Created")
 
         self.cur.execute(
             "CREATE INDEX IF NOT EXISTS idx_folder ON BOOKS (FOLDER);")
+        logging.debug("Index on BOOKS (FOLDER) Created")
 
         self.conn.commit()
+        logging.debug("Changed commited to database")
 
     def connect(self):
         self.conn = sqlite3.connect(self.db_path)
@@ -159,8 +169,10 @@ class Pookman(object):
                 "INSERT OR REPLACE INTO DIRS (ID, PATH, RECURS) \
                               VALUES ((SELECT ID FROM DIRS WHERE PATH = ?), ?, ?);",
                 data)
+            logging.debug("Dir %s Inserted to database", Dir.path)
 
         self.conn.commit()
+        logging.debug("Changes commited to database")
 
     def commit_ebooks_sql(self):
         for ebook in self.ebooks:
@@ -171,13 +183,18 @@ class Pookman(object):
                 "CATEGORY, STATUS, FAV) " \
                 "VALUES ((SELECT ID FROM BOOKS WHERE NAME = ?), ?, ?, ?, ?, ?);",
             data)
+            logging.debug("Ebook %s Inserted to database", ebook.name)
 
         self.conn.commit()
+        logging.debug("Changes commited to database")
 
     def del_dir(self, path):
         res = self.cur.execute("DELETE FROM DIRS WHERE PATH=?;", (path, ))
+        logging.debug("Dir %s Deleted from database", Dir.path)
         self.conn.commit()
+        logging.debug("Changes commited to database")
         self.dirs = self.fetch_dirs()
+        logging.debug("dirs updated")
 
     def fetch_ebooks(self, key="*", where=None, sort_clause=None):
         if not sort_clause:
@@ -223,6 +240,7 @@ class Pookman(object):
         return dirs
 
     def make_menus(self):
+
         # reding menu
         reading_menu_items = [(ebook.name, ebook.open_ebook)
                               for ebook in self.fetch_ebooks(where="status=1")]
@@ -250,6 +268,7 @@ class Pookman(object):
 
         # folders menu
         folders_menu_items = []
+        self.dirs = self.fetch_dirs()
         for Dir in self.dirs:
             dir_ebooks = [
                 ebook for ebook in self.fetch_ebooks(
@@ -296,17 +315,13 @@ class Pookman(object):
         self.main_menu = Menu("main", main_menu_items, self.screen)
 
     def scane(self):
-        res = self.cur.execute("DELETE FROM BOOKS;")
-        self.conn.commit()
-
-        mime = magic.open(magic.MAGIC_MIME)
-        mime.load()
+        mime = Mime()
 
         for Dir in self.dirs:
             Dir.getfiles()
             for file in Dir.files:
-                mime_type = mime.file(file)
-                if re.search(self.ebooks_types, mime_type):
+                if mime.mime_type(
+                        file) == T_EBOOK and file not in self.ebooks_files:
                     ebook = Ebook()
                     ebook.set_path(file)
                     self.ebooks.append(ebook)
@@ -318,5 +333,5 @@ class Pookman(object):
         self.commit_ebooks_sql()
 
     def main(self):
+        self.make_menus()
         self.main_menu.display()
-        self.close_connection()

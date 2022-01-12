@@ -7,6 +7,7 @@
 
 import curses
 from curses import panel
+from epookman.data.help import Help
 
 
 class Menu(object):
@@ -22,6 +23,8 @@ class Menu(object):
 
         self.position = 0
         self.items = items
+
+        self.help = Help(stdscreen)
 
     def navigate(self, n):
         self.position += n
@@ -71,8 +74,7 @@ class Menu(object):
                 self.navigate(1)
 
             elif key in [ord("?")]:
-                global Help
-                Help.display()
+                self.help.display()
 
             elif key in [curses.KEY_LEFT, ord("h")]:
                 if self.name != "main":
@@ -86,26 +88,3 @@ class Menu(object):
         self.window.clear()
         self.panel.hide()
         panel.update_panels()
-
-
-class HelpScreen(object):
-
-    def __init__(self, stdscreen, keybinds):
-        self.keybinds = keybinds
-        x_value = 0
-        y_value = 40
-        self.window = stdscreen.subwin(x_value, y_value)
-
-    def display(self):
-        self.window.clear()
-
-        msg = "KEY\tHelp"
-        self.window.addstr(0, 1, msg)
-
-        for index, keybind in enumerate(self.keybinds):
-            key = keybind[0]
-            key_help = keybind[1]
-            msg = "%s\t%s" % (key, key_help)
-            self.window.addstr(1 + index, 1, msg)
-
-        self.window.refresh()

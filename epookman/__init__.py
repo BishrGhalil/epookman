@@ -6,6 +6,7 @@
 
 import os
 from sys import version_info
+import epookman.data.log
 
 
 # Version helper
@@ -43,12 +44,6 @@ DEFAULT_PAGER = 'less'
 USAGE = '%prog [options] [path]'
 VERSION = version_helper()
 PY3 = version_info[0] >= 3
-
-# These variables are ignored if the corresponding
-# XDG environment variable is non-empty and absolute
-CACHEDIR = os.path.expanduser('~/.cache/ranger')
-CONFDIR = os.path.expanduser('~/.config/ranger')
-DATADIR = os.path.expanduser('~/.local/share/ranger')
 
 args = None
 

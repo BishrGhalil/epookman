@@ -5,6 +5,7 @@
 # License: MIT, see the file "LICENCS" for details.
 """File system scraper"""
 
+import logging
 import os
 from sys import stderr
 
@@ -20,8 +21,9 @@ class Dirent():
         self.recurs = 1
 
     def check_path(self, path):
-        if os.path.isdir(path) == False:
-            stderr.write("Not a valid directory path, %s\n" % path)
+        logging.debug("Checking path on %s", path)
+        if not os.path.lexists(path):
+            logging.error("Not a valid directory path %s", path)
 
     def toggle_recurs():
         self.recurs = not self.recurs
@@ -48,3 +50,6 @@ class Dirent():
     def set_values(self, uri, recurs):
         self.path = uri
         self.recurs = recurs
+
+    def __str__(self):
+        return self.path

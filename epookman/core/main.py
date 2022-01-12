@@ -24,20 +24,17 @@ class Main(object):
         app = Epookman(self.screen)
         logging.debug("Created Epookman object")
 
-        dirs = [
-            "/home/bishr/Documents/Books/Novels",
-            "/home/bishr/Documents/Books/Programming",
-            "/home/bishr/Documents/Books/Linux",
-        ]
-
-        app.addirs(dirs)
-        logging.debug("Added dirs to Epookman")
-        app.scane()
         logging.debug("Scaned dirs")
         app.main()
 
 
 def main():
+    if len(argv) > 1:
+        if "-h" in argv or "--help" in argv:
+            print("Usage: epookman [OPTIONS]\n")
+            print("There no options.")
+            exit(0)
+
     try:
         curses.wrapper(Main)
     except Exception as e:

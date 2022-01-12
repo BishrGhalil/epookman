@@ -6,7 +6,9 @@
 """Curses Menus Classes and Functions"""
 
 import curses
+import logging
 from curses import panel
+
 from epookman.data.help import Help
 
 
@@ -43,6 +45,14 @@ class Menu(object):
         self.window.clear()
 
         while True:
+
+            x_value, y_value = self.window.getmaxyx()
+            logging.debug("Got max_x %s and max_y %s", x_value, y_value)
+            msg = "Press ? to show help"
+            mode = curses.A_NORMAL
+            self.window.addstr(x_value - 1, 0, msg, mode)
+
+
             self.window.refresh()
             curses.doupdate()
             if not self.items:

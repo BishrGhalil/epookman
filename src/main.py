@@ -2,18 +2,37 @@
 # -*- coding: utf-8 -*-
 
 import pdb
-from pookman import *
+from sys import argv
+import curses
+
+from pookman import Pookman
+
+
+class Main(object):
+
+    def __init__(self, stdscreen):
+
+        self.screen = stdscreen
+        curses.use_default_colors()
+        curses.curs_set(0)
+
+        # FIXMEEE: books from deleted directory still exist
+        global debug
+        if debug:
+            pdb.set_trace()
+
+        app = Pookman(self.screen)
+
+        dirs = [
+            "/home/bishr/Documents/Books/Novels",
+            "/home/bishr/Documents/Books/Programming"
+        ]
+
+        app.main()
+
 
 if __name__ == "__main__":
-    dirs = [
-        "/home/bishr/Documents/Books/Linux",
-        "/home/bishr/Documents/Books/Novels"
-    ]
+    global debug
+    debug = "-d" in argv or "--debug" in argv
 
-    #  pdb.set_trace()
-    app = Pookman()
-    app.addirs(dirs)
-    # FIXMEEE: books from deleted directory still exist
-    app.del_dir("/home/bishr/Documents/Books/Novels")
-    app.scane()
-    app.main()
+    curses.wrapper(Main)

@@ -1,16 +1,31 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import curses
 import os
 import re
 import sqlite3
 import sys
+from curses import panel
 
 import magic
 
+from curses_menus import *
 from dirent import Dirent
 
 VERSION = "0.1"
+ebook_reader = "zathura"
+
+
+def pm_error(msg):
+    sys.stderr.write("ERROR: %s\n" % msg)
+
+
+def pm_exit_error(msg):
+    if msg:
+        pm_error(msg)
+
+    exit(1)
 
 
 class Ebook():
@@ -21,7 +36,7 @@ class Ebook():
         folder="",
         name="",
         category=None,
-        status="fresh",
+        status=0,
         fav=0,
     ):
 
@@ -39,10 +54,22 @@ class Ebook():
     def toggle_fav(self):
         self.fav = not self.fav
 
+    def toggle_status(self):
+        self.status = not self.status
 
-class Pookman():
+    def open_ebook(self):
+        uri = os.path.join(self.folder, self.name)
+        global ebook_reader
 
-    def __init__(self):
+        cmd = "%s \"%s\" > /dev/null 2>&1" % (ebook_reader, uri)
+        if not os.system(cmd):
+            msg = "Couldn't open %s" % uri
+            pm_error(msg)
+
+
+class Pookman(object):
+
+    def __init__(self, stdscreen):
         self.version = VERSION
 
         self.db_name = "pookman.db"
@@ -56,7 +83,13 @@ class Pookman():
 
         self.dirs = self.fetch_dirs()
         self.ebooks = self.fetch_ebooks()
-        self.ebooks_types = "pdf|epub|mobi|azw"  # re pattern
+
+        # re pattern for supported ebooks types
+        self.ebooks_types = "pdf|epub|mobi|azw"
+
+        self.main_menu = None
+        self.screen = stdscreen
+        self.make_menus()
 
     def __del__(self):
         self.close_connection()
@@ -66,11 +99,11 @@ class Pookman():
             self.dirs.append(Dir)
 
         else:
-            self.error("Not a valid Dirent object")
+            pm_error("Not a valid Dirent object")
 
     def addirs(self, uris):
         if not isinstance(uris, list) and not isinstance(uris, tuple):
-            self.error("Not a valid list or tuple")
+            pm_error("Not a valid list or tuple")
         else:
             for uri in uris:
                 Dir = Dirent(uri)
@@ -145,21 +178,32 @@ class Pookman():
         self.conn.commit()
         self.dirs = self.fetch_dirs()
 
-    def fetch_ebooks(self, key="*"):
-        res = self.cur.execute(
-            "SELECT DISTINCT %s FROM BOOKS ORDER BY FOLDER, NAME, FAV DESC;" %
-            key)
+    def fetch_ebooks(self, key="*", where=None, sort_clause=None):
+        if not sort_clause:
+            sort_clause = "ORDER BY NAME, FAV DESC"
+
+        if not where:
+            res = self.cur.execute("SELECT DISTINCT %s FROM BOOKS %s;" %
+                                   (key, sort_clause))
+        else:
+            res = self.cur.execute(
+                "SELECT DISTINCT %s FROM BOOKS WHERE %s %s;" %
+                (key, where, sort_clause))
+
         ebooks = []
         if not res:
             return ebooks
 
         for row in res:
-            ebook = Ebook(folder=row[1],
-                          name=row[2],
-                          category=row[3],
-                          status=row[4],
-                          fav=row[5])
-            ebooks.append(ebook)
+            if len(row) == 1:
+                ebooks.append(row[0])
+            else:
+                ebook = Ebook(folder=row[1],
+                              name=row[2],
+                              category=row[3],
+                              status=row[4],
+                              fav=row[5])
+                ebooks.append(ebook)
 
         return ebooks
 
@@ -176,6 +220,79 @@ class Pookman():
             dirs.append(Dir)
 
         return dirs
+
+    def make_menus(self):
+        # reding menu
+        reading_menu_items = [(ebook.name, ebook.open_ebook)
+                              for ebook in self.fetch_ebooks(where="status=1")]
+        reading_menu = Menu("reading", reading_menu_items, self.screen)
+
+        # have read menu
+        have_read_menu_items = [
+            (ebook.name, ebook.open_ebook)
+            for ebook in self.fetch_ebooks(where="status=2")
+        ]
+        have_read_menu = Menu("have_read", have_read_menu_items, self.screen)
+
+        # haven't read menu
+        havent_read_menu_items = [
+            (ebook.name, ebook.open_ebook)
+            for ebook in self.fetch_ebooks(where="status=0")
+        ]
+        havent_read_menu = Menu("havent_read", havent_read_menu_items,
+                                self.screen)
+
+        # all menu
+        all_menu_items = [(ebook.name, ebook.open_ebook)
+                          for ebook in self.fetch_ebooks()]
+        all_menu = Menu("all", all_menu_items, self.screen)
+
+        # folders menu
+        folders_menu_items = []
+        for Dir in self.dirs:
+            dir_ebooks = [
+                ebook for ebook in self.fetch_ebooks(
+                    where=f"folder like \'{Dir.path}%\'")
+            ]
+            dir_menu_items = [(ebook.name, ebook.open_ebook)
+                              for ebook in dir_ebooks]
+            dir_menu = Menu(Dir.path, dir_menu_items, self.screen)
+            folders_menu_items.append((Dir.path, dir_menu.display))
+
+        folders_menu = Menu("folders", folders_menu_items, self.screen)
+
+        # categories menu
+        categories_menu_items = []
+        categories_list = self.fetch_ebooks(key="category")
+        for cat in categories_list:
+            cat_ebooks = [
+                ebook
+                for ebook in self.fetch_ebooks(where="category=\'%s\'" % cat)
+            ]
+            cat_menu_items = [(ebook.name, ebook.open_ebook)
+                              for ebook in cat_ebooks]
+            cat_menu = Menu(cat, cat_menu_items, self.screen)
+            categories_menu_items.append((cat, cat_menu.display))
+
+        categories_menu = Menu("categories", categories_menu_items,
+                               self.screen)
+
+        # favorites menu
+        favorites_menu_items = [(ebook.name, ebook.open_ebook)
+                                for ebook in self.fetch_ebooks(where="fav=1")]
+        favorites_menu = Menu("favorites", favorites_menu_items, self.screen)
+
+        main_menu_items = [
+            ("Reading", reading_menu.display),
+            ("Folders", folders_menu.display),
+            ("Favorites", favorites_menu.display),
+            ("Categories", categories_menu.display),
+            ("Have read", have_read_menu.display),
+            ("Haven't read", havent_read_menu.display),
+            ("All", all_menu.display),
+        ]
+
+        self.main_menu = Menu("main", main_menu_items, self.screen)
 
     def scane(self):
         res = self.cur.execute("DELETE FROM BOOKS;")
@@ -199,24 +316,6 @@ class Pookman():
         self.commit_dirs_sql()
         self.commit_ebooks_sql()
 
-    def error(self, msg):
-        sys.stderr.write("ERROR: %s\n" % msg)
-
-    def exit_error(self, msg):
-        if msg:
-            self.error(msg)
-
-        exit(1)
-
     def main(self):
-        print("# books from db")
-        ebooks = self.fetch_ebooks()
-        for ebook in ebooks:
-            print("\t%s" % ebook.name)
-
-        print("# dirs form db")
-        dirs = self.fetch_dirs()
-        for Dir in dirs:
-            print("\t%s" % Dir.path)
-
+        self.main_menu.display()
         self.close_connection()

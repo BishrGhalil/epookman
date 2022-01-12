@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+# This file is part of epookman, the console ebook manager.
+# License: MIT, see the file "LICENCS" for details.
+
 import curses
 import os
 import re
@@ -10,10 +13,9 @@ from curses import panel
 
 import magic
 
-from curses_menus import *
-from dirent import Dirent
+from epookman.api.curses_menus import *
+from epookman.api.dirent import Dirent
 
-VERSION = "0.1"
 ebook_reader = "zathura"
 
 
@@ -70,13 +72,12 @@ class Ebook():
 class Pookman(object):
 
     def __init__(self, stdscreen):
-        self.version = VERSION
-
         self.db_name = "pookman.db"
         self.db_path = os.path.join(os.getenv("HOME"), self.db_name)
 
         self.conn = None
         self.cur = None
+
         self.connect()
 
         self.create_tables_sql()

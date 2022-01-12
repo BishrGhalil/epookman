@@ -1,5 +1,9 @@
-all: install
-install:
-    cp pookman /usr/bin
-uninstall:
-    rm -rf /usr/bin/pookman
+all: 
+
+run:
+	python3 epookman.py
+
+clean:
+	rm -rf __pycache__/
+
+.PHONE: clean run

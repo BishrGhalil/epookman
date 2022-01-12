@@ -1,16 +1,17 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+# This file is part of epookman, the console ebook manager.
+# License: MIT, see the file "LICENCS" for details.
+"""File system scraper"""
+
 import os
 from sys import stderr
-
-VERSION = "0.1"
 
 
 class Dirent():
 
     def __init__(self, uri=""):
-        self.version = VERSION
 
         self.check_path(uri)
         self.path = uri

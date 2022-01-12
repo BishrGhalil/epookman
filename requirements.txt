@@ -1,0 +1,3 @@
+file-magic
+sqlalchemy
+curses-utils

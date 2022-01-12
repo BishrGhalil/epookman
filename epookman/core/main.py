@@ -1,11 +1,15 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+# This file is part of epookman, the console ebook manager.
+# License: MIT, see the file "LICENCS" for details.
+"""The Main Class responsible to initialize the EM object and stuff."""
+
+import curses
 import pdb
 from sys import argv
-import curses
 
-from pookman import Pookman
+from epookman.core.epookman import Pookman
 
 
 class Main(object):
@@ -31,8 +35,8 @@ class Main(object):
         app.main()
 
 
-if __name__ == "__main__":
+def main():
     global debug
     debug = "-d" in argv or "--debug" in argv
-
     curses.wrapper(Main)
+

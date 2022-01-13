@@ -26,36 +26,9 @@ class Menu(object):
 
         self.help = Help(stdscreen)
 
-    def navigate(self, n):
-        self.position += n
-        if self.position < 0:
-            self.position = 0
-        elif self.position >= len(self.items):
-            self.position = len(self.items) - 1
-
-    def print_error(self, msg):
-        mode = curses.A_BOLD
-        self.window.addstr(1, 1, msg, mode)
-
-    def update(self):
-        self.window.clear()
-        self.panel.hide()
-        panel.update_panels()
-
-        self.panel.top()
-        self.panel.show()
-
     def display(self):
         while True:
             self.window.clear()
-
-            y_value, x_value = self.window.getmaxyx()
-            logging.debug("Got max_x %s and max_y %s", x_value, y_value)
-            msg = "Press ? to show help"
-            mode = curses.A_NORMAL
-            self.window.addstr(y_value - 1, 0, msg, mode)
-
-            self.window.refresh()
             if not self.items:
                 self.print_error("Empty")
 
@@ -112,5 +85,41 @@ class Menu(object):
         self.panel.hide()
         panel.update_panels()
 
+    def navigate(self, n):
+        self.position += n
+        if self.position < 0:
+            self.position = 0
+        elif self.position >= len(self.items):
+            self.position = len(self.items) - 1
+
+    def print_error(self, msg):
+        mode = curses.A_BOLD
+        self.window.addstr(1, 1, msg, mode)
+
+    def update(self):
+        self.window.clear()
+        self.panel.hide()
+        panel.update_panels()
+        self.panel.top()
+        self.panel.show()
+
     def kill(self):
         self.window.erase()
+
+
+class StatusBar(object):
+
+    def __init__(self, stdscreen):
+        self.stdscreen = stdscreen
+        self.window = None
+        self.init_window()
+
+    def init_window(self):
+        y_value, x_value = self.stdscreen.getmaxyx()
+        self.window = self.stdscreen.subwin(y_value - 1, 0)
+        self.window.keypad(1)
+
+    def print(self, msg, mode=curses.A_NORMAL):
+        self.window.clear()
+        self.window.addstr(0, 0, msg, mode)
+        self.window.refresh()

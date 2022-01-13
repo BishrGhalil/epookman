@@ -8,6 +8,7 @@
 import curses
 import logging
 from curses import panel
+from difflib import get_close_matches
 
 from epookman.data.help import Help
 
@@ -15,11 +16,8 @@ from epookman.data.help import Help
 class Menu(object):
 
     def __init__(self, name, items, stdscreen):
-        self.window = stdscreen.subwin(0, 0)
-        self.window.keypad(1)
-        self.panel = panel.new_panel(self.window)
-        self.panel.hide()
-        panel.update_panels()
+        self.stdscreen = stdscreen
+        self.init_window_panel()
 
         self.name = name
 
@@ -39,22 +37,25 @@ class Menu(object):
         mode = curses.A_BOLD
         self.window.addstr(1, 1, msg, mode)
 
-    def display(self):
+    def update(self):
+        self.window.clear()
+        self.panel.hide()
+        panel.update_panels()
+
         self.panel.top()
         self.panel.show()
-        self.window.clear()
 
+    def display(self):
         while True:
+            self.window.clear()
 
-            x_value, y_value = self.window.getmaxyx()
+            y_value, x_value = self.window.getmaxyx()
             logging.debug("Got max_x %s and max_y %s", x_value, y_value)
             msg = "Press ? to show help"
             mode = curses.A_NORMAL
-            self.window.addstr(x_value - 1, 0, msg, mode)
-
+            self.window.addstr(y_value - 1, 0, msg, mode)
 
             self.window.refresh()
-            curses.doupdate()
             if not self.items:
                 self.print_error("Empty")
 
@@ -75,7 +76,13 @@ class Menu(object):
                     self.print_error("Empty")
 
                 else:
-                    self.items[self.position][1]()
+                    _len = len(self.items[self.position])
+                    if _len > 2:
+                        args = self.items[self.position][2::]
+                        self.items[self.position][1](*args)
+                    else:
+                        if self.items[self.position][1]() == -1:
+                            return -1
 
             elif key in [curses.KEY_UP, ord("k")]:
                 self.navigate(-1)
@@ -93,8 +100,17 @@ class Menu(object):
                     ord("q"), curses.KEY_EXIT, curses.KEY_CLOSE,
                     curses.KEY_CANCEL
             ]:
-                break
+                self.kill()
+                return -1
 
-        self.window.clear()
+        self.update()
+
+    def init_window_panel(self):
+        self.window = self.stdscreen.subwin(0, 0)
+        self.window.keypad(1)
+        self.panel = panel.new_panel(self.window)
         self.panel.hide()
         panel.update_panels()
+
+    def kill(self):
+        self.window.erase()

@@ -23,6 +23,11 @@ class Main(object):
 
         app = Epookman(self.screen)
         logging.debug("Created Epookman object")
+        dirs = [
+            "/home/bishr/Documents/Books/Linux",
+            "/home/bishr/Documents/Books/Novels",
+            "/home/bishr/Documents/Books/Programming",
+        ]
 
         logging.debug("Scaned dirs")
         app.main()
@@ -35,8 +40,4 @@ def main():
             print("There no options.")
             exit(0)
 
-    try:
-        curses.wrapper(Main)
-    except Exception as e:
-        logging.error(e)
-        exit(1)
+    curses.wrapper(Main)

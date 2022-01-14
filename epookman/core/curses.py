@@ -74,39 +74,40 @@ class Menu(object):
             ]:
                 self.kill()
                 return -1
-            elif key in [ord("/")]:
-                y_value = self.window.getmaxyx()[0]
-                msg = "Search: "
-                self.window.addstr(y_value - 1, 0, msg, curses.A_NORMAL)
-                self.window.refresh()
-                string = str()
-                while True:
-                    key = self.window.getch()
-                    if key in [ord('\n'), curses.KEY_ENTER]:
-                        items = [item["string"].lower() for item in self.items]
-                        match = get_close_matches(string.lower(), items, 5, cutoff=0.10)
-                        logging.debug("Matched %s from %s", match, items)
 
-                        if match:
-                            index = items.index(match[0])
-                            nav = index - self.position 
-                            self.navigate(nav)
-                        break
-
-                    elif key in [curses.KEY_BACKSPACE]:
-                        if string:
-                            self.window.delch(y_value - 1, len(string) + 1)
-                            string = string.replace(string[-1], "")
-
-                    else:
-                        string += chr(key)
-
-                    msg = "Search: %s" % string
-                    self.window.addstr(y_value - 1, 0, msg,
-                                       curses.A_NORMAL)
-                    self.window.refresh()
+            elif key == ord("/"):
+                string = self.input("Search: ")
+                items = [item["string"].lower() for item in self.items]
+                match = get_close_matches(string.lower(), items, 1, cutoff=0.10)
+                if match:
+                    index = items.index(match[0])
+                    pos = self.position
+                    self.navigate(index - pos)
+            
 
         self.update()
+
+    def input(self, prompt):
+        y_value = self.window.getmaxyx()[0]
+        msg = "%s" % prompt
+        self.window.addstr(y_value - 1, 0, msg, curses.A_NORMAL)
+        self.window.refresh()
+        string = str()
+        while True:
+            key = self.window.getch()
+            if key in [ord("\n"), curses.KEY_ENTER]:
+                return string
+
+            elif key == curses.KEY_BACKSPACE:
+                if string:
+                    self.window.delch(y_value - 1, len(string) + 1)
+                    string = string.replace(string[-1], "")
+            else:
+                string += chr(key)
+
+            msg = "%s %s" % (prompt, string)
+            self.window.addstr(y_value - 1, 0, msg, curses.A_NORMAL)
+            self.window.refresh()
 
     def init_window_panel(self):
         self.window = self.stdscreen.subwin(0, 0)

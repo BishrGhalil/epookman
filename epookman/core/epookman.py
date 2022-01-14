@@ -10,12 +10,13 @@ import os
 import re
 import sqlite3
 import sys
+from time import sleep
 
 import magic
 
 from epookman.api.dirent import Dirent
 from epookman.api.mime import T_EBOOK, Mime
-from epookman.core.curses_menus import *
+from epookman.core.curses import *
 
 
 class Ebook():
@@ -51,6 +52,9 @@ class Ebook():
             self.status = 2
         elif status.lower() == "havnt_read":
             self.status = 0
+
+    def set_category(self, category):
+        self.category = category
 
 
 class Epookman(object):
@@ -204,11 +208,18 @@ class Epookman(object):
         logging.debug("Dir %s removed from dirs", path)
 
     def del_dir_refetch(self, path):
-        self.del_dir(path)
-        self.ebooks = self.fetch_ebooks()
-        self.ebooks_files_init()
-        self.status_bar.print("Directory has been deleted")
-        self.kill_rerun_main_menu()
+        if self.status_bar.confirm(
+                "Are you sure want to delete this directory? [y, n]",
+                curses.A_STANDOUT):
+            self.del_dir(path)
+            self.ebooks = self.fetch_ebooks()
+            self.ebooks_files_init()
+            self.status_bar.print("Directory has been deleted")
+            sleep(.5)
+            self.status_bar.print("Press ? to show help.")
+            self.kill_rerun_main_menu()
+        else:
+            self.status_bar.print("Press ? to show help.")
 
     def fetch_ebooks(self, key="*", where=None, sort_clause=None):
         if not sort_clause:
@@ -263,31 +274,44 @@ class Epookman(object):
     def make_menus(self):
 
         # reading menu
-        reading_menu_items = [(ebook.name, self.open_ebook, ebook)
-                              for ebook in self.fetch_ebooks(where="status=1")]
+        reading_menu_items = [{
+            "string": ebook.name,
+            "enter_action": self.open_ebook,
+            "args": [ebook,],
+            "take_action": self.take_action
+        } for ebook in self.fetch_ebooks(where="status=1")]
         reading_menu = Menu("reading", reading_menu_items, self.menu_window)
 
         # have read menu
-        have_read_menu_items = [
-            (ebook.name, self.open_ebook, ebook)
-            for ebook in self.fetch_ebooks(where="status=2")
-        ]
-        have_read_menu = Menu("have_read", have_read_menu_items, self.menu_window)
+        have_read_menu_items = [{
+            "string": ebook.name,
+            "enter_action": self.open_ebook,
+            "args": [ebook,],
+            "take_action": self.take_action
+        } for ebook in self.fetch_ebooks(where="status=2")]
+        have_read_menu = Menu("have_read", have_read_menu_items,
+                              self.menu_window)
 
         # haven't read menu
-        havent_read_menu_items = [
-            (ebook.name, self.open_ebook, ebook)
-            for ebook in self.fetch_ebooks(where="status=0")
-        ]
+        havent_read_menu_items = [{
+            "string": ebook.name,
+            "enter_action": self.open_ebook,
+            "args": [ebook,],
+            "take_action": self.take_action
+        } for ebook in self.fetch_ebooks(where="status=0")]
         havent_read_menu = Menu("havent_read", havent_read_menu_items,
                                 self.menu_window)
 
         # all menu
-        all_menu_items = [(ebook.name, self.open_ebook, ebook)
-                          for ebook in self.fetch_ebooks()]
+        all_menu_items = [{
+            "string": ebook.name,
+            "enter_action": self.open_ebook,
+            "args": [ebook,],
+            "take_action": self.take_action
+        } for ebook in self.fetch_ebooks()]
         all_menu = Menu("all", all_menu_items, self.menu_window)
 
-        # folders menu
+        # folders men
         folders_menu_items = []
         self.dirs = self.fetch_dirs()
         for Dir in self.dirs:
@@ -295,10 +319,18 @@ class Epookman(object):
                 ebook for ebook in self.fetch_ebooks(
                     where=f"folder like \'{Dir.path}%\'")
             ]
-            dir_menu_items = [(ebook.name, self.open_ebook, ebook)
-                              for ebook in dir_ebooks]
+            dir_menu_items = [{
+                "string": ebook.name,
+                "enter_action": self.open_ebook,
+                "args": [ebook,],
+                "take_action": self.take_action
+            } for ebook in dir_ebooks]
             dir_menu = Menu(Dir.path, dir_menu_items, self.menu_window)
-            folders_menu_items.append((Dir.path, dir_menu.display))
+            folders_menu_items.append({
+                "string": Dir.path,
+                "enter_action": dir_menu.display,
+                "take_action": self.take_action
+            })
 
         folders_menu = Menu("folders", folders_menu_items, self.menu_window)
 
@@ -310,33 +342,50 @@ class Epookman(object):
                 ebook
                 for ebook in self.fetch_ebooks(where="category=\'%s\'" % cat)
             ]
-            cat_menu_items = [(ebook.name, self.open_ebook, ebook)
-                              for ebook in cat_ebooks]
+            cat_menu_items = [{
+                "string": ebook.name,
+                "enter_action": self.open_ebook,
+                "args": [ebook,],
+                "take_action": self.take_action
+            } for ebook in cat_ebooks]
             cat_menu = Menu(cat, cat_menu_items, self.menu_window)
-            categories_menu_items.append((cat, cat_menu.display))
+            categories_menu_items.append({
+                "string": cat,
+                "enter_action": cat_menu.display,
+                "take_action": self.take_action
+            })
 
         categories_menu = Menu("categories", categories_menu_items,
                                self.menu_window)
 
         # favorites menu
-        favorites_menu_items = [(ebook.name, self.open_ebook, ebook)
-                                for ebook in self.fetch_ebooks(where="fav=1")]
-        favorites_menu = Menu("favorites", favorites_menu_items, self.menu_window)
+        favorites_menu_items = [{
+            "string": ebook.name,
+            "enter_action": self.open_ebook,
+            "args": [ebook,],
+            "take_action": self.take_action
+        } for ebook in self.fetch_ebooks(where="fav=1")]
+        favorites_menu = Menu("favorites", favorites_menu_items,
+                              self.menu_window)
 
         # delete dir menu
-        delete_dir_menu_item = [(Dir.path, self.del_dir_refetch, Dir.path)
-                                for Dir in self.fetch_dirs()]
-        delete_dir_menu = Menu("delete_dir", delete_dir_menu_item, self.menu_window)
+        delete_dir_menu_item = [{
+            "string": Dir.path,
+            "enter_action": self.del_dir_refetch,
+            "args": [Dir.path,]
+        } for Dir in self.fetch_dirs()]
+        delete_dir_menu = Menu("delete_dir", delete_dir_menu_item,
+                               self.menu_window)
 
         main_menu_items = [
-            ("Reading", reading_menu.display),
-            ("Folders", folders_menu.display),
-            ("Favorites", favorites_menu.display),
-            ("Categories", categories_menu.display),
-            ("Have read", have_read_menu.display),
-            ("Haven't read", havent_read_menu.display),
-            ("All", all_menu.display),
-            ("Delete a directory", delete_dir_menu.display),
+            {"string": "Reading","enter_action": reading_menu.display },
+            {"string": "Folders","enter_action": folders_menu.display },
+            {"string": "Favorites","enter_action": favorites_menu.display },
+            {"string": "Categories","enter_action": categories_menu.display },
+            {"string": "Have read","enter_action": have_read_menu.display },
+            {"string": "Haven't read","enter_action": havent_read_menu.display },
+            {"string": "All","enter_action": all_menu.display },
+            {"string": "Delete a directory","enter_action": delete_dir_menu.display },
         ]
 
         self.main_menu = Menu("main", main_menu_items, self.menu_window)
@@ -353,7 +402,12 @@ class Epookman(object):
         self.status_bar.print("Ebook added to Reading")
         self.kill_rerun_main_menu()
 
-    def change_ebook_status(self, status, ebook=None, name=None):
+    def change_ebook_status(self,
+                            status=None,
+                            fav=None,
+                            category=None,
+                            ebook=None,
+                            name=None):
         if name:
             for i in self.ebooks:
                 if i.name == name:
@@ -362,7 +416,13 @@ class Epookman(object):
         elif not ebook:
             return
 
-        ebook.set_status(status)
+        if fav:
+            ebook.toggle_fav()
+        elif status:
+            ebook.set_status(status)
+        elif category:
+            ebook.set_category(category)
+
         for index, i in enumerate(self.ebooks):
             if i.name == ebook.name:
                 self.ebooks[index] = ebook
@@ -386,6 +446,25 @@ class Epookman(object):
                     self.ebooks.append(ebook)
 
         self.update_db()
+
+    def take_action(self, name, key, value=None):
+        if key == "scane":
+            self.scane()
+
+        elif key == "toggle_mark":
+            self.change_ebook_status(name=name)
+
+        elif key == "toggle_fav":
+            self.change_ebook_status(name=name, fav=True)
+
+        elif key == "add_category":
+            self.change_ebook_status(name=name, category=value)
+
+        elif key == "add_dir":
+            Dir = Dirent(name)
+            self.addir(Dir)
+
+        self.kill_rerun_main_menu()
 
     def update_db(self):
         self.commit_dirs_sql()

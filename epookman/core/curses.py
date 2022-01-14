@@ -3,7 +3,7 @@
 
 # This file is part of epookman, the console ebook manager.
 # License: MIT, see the file "LICENCS" for details.
-"""Curses Menus Classes and Functions"""
+"""Curses UI Classes and Functions"""
 
 import curses
 import logging
@@ -39,7 +39,7 @@ class Menu(object):
                     else:
                         mode = curses.A_NORMAL
 
-                    msg = "%s" % (item[0])
+                    msg = "%s" % (item["string"])
                     self.window.addstr(1 + index, 1, msg, mode)
 
             key = self.window.getch()
@@ -49,12 +49,11 @@ class Menu(object):
                     self.print_error("Empty")
 
                 else:
-                    _len = len(self.items[self.position])
-                    if _len > 2:
-                        args = self.items[self.position][2::]
-                        self.items[self.position][1](*args)
+                    if self.items[self.position].get("args"):
+                        args = self.items[self.position]["args"]
+                        self.items[self.position]["enter_action"](*args)
                     else:
-                        if self.items[self.position][1]() == -1:
+                        if self.items[self.position]["enter_action"]() == -1:
                             return -1
 
             elif key in [curses.KEY_UP, ord("k")]:
@@ -75,6 +74,37 @@ class Menu(object):
             ]:
                 self.kill()
                 return -1
+            elif key in [ord("/")]:
+                y_value = self.window.getmaxyx()[0]
+                msg = "Search: "
+                self.window.addstr(y_value - 1, 0, msg, curses.A_NORMAL)
+                self.window.refresh()
+                string = str()
+                while True:
+                    key = self.window.getch()
+                    if key in [ord('\n'), curses.KEY_ENTER]:
+                        items = [item["string"].lower() for item in self.items]
+                        match = get_close_matches(string.lower(), items, 5, cutoff=0.10)
+                        logging.debug("Matched %s from %s", match, items)
+
+                        if match:
+                            index = items.index(match[0])
+                            nav = index - self.position 
+                            self.navigate(nav)
+                        break
+
+                    elif key in [curses.KEY_BACKSPACE]:
+                        if string:
+                            self.window.delch(y_value - 1, len(string) + 1)
+                            string = string.replace(string[-1], "")
+
+                    else:
+                        string += chr(key)
+
+                    msg = "Search: %s" % string
+                    self.window.addstr(y_value - 1, 0, msg,
+                                       curses.A_NORMAL)
+                    self.window.refresh()
 
         self.update()
 
@@ -123,3 +153,13 @@ class StatusBar(object):
         self.window.clear()
         self.window.addstr(0, 0, msg, mode)
         self.window.refresh()
+
+    def confirm(self, msg, mode=curses.A_BOLD):
+        self.window.clear()
+        self.window.addstr(0, 0, msg, mode)
+        self.window.refresh()
+        key = self.window.getch()
+        if key in [ord('y')]:
+            return True
+
+        return False

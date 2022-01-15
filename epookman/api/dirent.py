@@ -10,26 +10,31 @@ import os
 from sys import stderr
 
 
+def check_path(path):
+    return True
+    if not os.path.lexists(path):
+        return False
+
+
 class Dirent():
 
     def __init__(self, uri=""):
 
-        self.check_path(uri)
+        if not check_path(uri):
+            return
+
         self.path = uri
         self.files = []
         self.ents = []
         self.recurs = 1
 
-    def check_path(self, path):
-        logging.debug("Checking path on %s", path)
-        if not os.path.lexists(path):
-            logging.error("Not a valid directory path %s", path)
-
     def toggle_recurs():
         self.recurs = not self.recurs
 
     def getfiles_from_path(self, path):
-        self.check_path(path)
+        if not check_path(path):
+            return
+
         ents = os.scandir(path)
 
         for ent in ents:

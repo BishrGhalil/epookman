@@ -11,6 +11,7 @@ from curses import panel
 from difflib import get_close_matches
 
 from epookman.data.help import Help
+from epookman.api.dirent import check_path
 
 
 class Menu(object):
@@ -30,14 +31,20 @@ class Menu(object):
         while True:
             self.window.clear()
             if not self.items:
-                self.print_error("Empty")
+                self.print_error("Empty", curses.color_pair(5))
 
             else:
                 for index, item in enumerate(self.items):
                     if index == self.position:
-                        mode = curses.A_REVERSE
+                        if item.get("type") != "ebook":
+                            mode = curses.color_pair(1)
+                        else:
+                            mode = curses.color_pair(3)
                     else:
-                        mode = curses.A_NORMAL
+                        if item.get("type") != "ebook":
+                            mode = curses.color_pair(2)
+                        else:
+                            mode = curses.color_pair(4)
 
                     msg = "%s" % (item["string"])
                     self.window.addstr(1 + index, 1, msg, mode)
@@ -46,7 +53,7 @@ class Menu(object):
 
             if key in [curses.KEY_ENTER, ord("\n"), ord("l")]:
                 if not self.items:
-                    self.print_error("Empty")
+                    self.print_error("Empty", curses.color_pair(5))
 
                 else:
                     if self.items[self.position].get("args"):
@@ -62,7 +69,15 @@ class Menu(object):
             elif key in [curses.KEY_DOWN, ord("j")]:
                 self.navigate(1)
 
-            elif key in [ord("?")]:
+            elif key == ord("g"):
+                key = self.window.getch()
+                if key == ord("g"):
+                    self.navigate(-self.position)
+
+            elif key == ord("G"):
+                self.navigate(len(self.items) - self.position)
+
+            elif key == ord("?"):
                 self.help.display()
 
             elif key in [curses.KEY_LEFT, ord("h")]:
@@ -78,12 +93,49 @@ class Menu(object):
             elif key == ord("/"):
                 string = self.input("Search: ")
                 items = [item["string"].lower() for item in self.items]
-                match = get_close_matches(string.lower(), items, 1, cutoff=0.10)
+                match = get_close_matches(string.lower(),
+                                          items,
+                                          1,
+                                          cutoff=0.10)
                 if match:
                     index = items.index(match[0])
                     pos = self.position
                     self.navigate(index - pos)
-            
+
+            elif key == ord("a"):
+                string = self.input("Directory path: ")
+                if not check_path(string):
+                    string = self.items[0]["take_action"](
+                        key="print_status", name="Not a valid path")
+
+                else:
+                    self.items[0]["take_action"](key="add_dir", name=string)
+
+            elif key == ord("f"):
+                item = self.items[self.position]
+                item["take_action"](key="toggle_fav", name=item["string"])
+
+            elif key == ord("m"):
+                item = self.items[self.position]
+                item["take_action"](key="toggle_mark",
+                                    name=item["string"],
+                                    value="have_read")
+            elif key == ord("t"):
+                item = self.items[self.position]
+                item["take_action"](key="toggle_mark",
+                                    name=item["string"],
+                                    value="havent_read")
+
+            elif key == ord("u"):
+                item = self.items[self.position]
+                item["take_action"](key="scane")
+
+            elif key == ord("c"):
+                category = self.input("Category name: ")
+                item = self.items[self.position]
+                item["take_action"](key="add_category",
+                                    name=item["string"],
+                                    value=category)
 
         self.update()
 
@@ -101,11 +153,12 @@ class Menu(object):
             elif key == curses.KEY_BACKSPACE:
                 if string:
                     self.window.delch(y_value - 1, len(string) + 1)
-                    string = string.replace(string[-1], "")
+                    self.window.refresh()
+                    string = string[0:-1]
             else:
                 string += chr(key)
 
-            msg = "%s %s" % (prompt, string)
+            msg = "%s%s" % (prompt, string)
             self.window.addstr(y_value - 1, 0, msg, curses.A_NORMAL)
             self.window.refresh()
 
@@ -123,8 +176,7 @@ class Menu(object):
         elif self.position >= len(self.items):
             self.position = len(self.items) - 1
 
-    def print_error(self, msg):
-        mode = curses.A_BOLD
+    def print_error(self, msg, mode=curses.A_BOLD):
         self.window.addstr(1, 1, msg, mode)
 
     def update(self):

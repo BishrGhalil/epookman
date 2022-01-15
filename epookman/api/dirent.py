@@ -11,24 +11,20 @@ from sys import stderr
 
 
 def check_path(path):
-    return True
     if not os.path.lexists(path):
         return False
 
+    return True
 
 class Dirent():
 
     def __init__(self, uri=""):
 
-        if not check_path(uri):
-            return
-
         self.path = uri
-        self.files = []
-        self.ents = []
+        self.files = list()
         self.recurs = 1
 
-    def toggle_recurs():
+    def toggle_recurs(self):
         self.recurs = not self.recurs
 
     def getfiles_from_path(self, path):
@@ -45,7 +41,6 @@ class Dirent():
                     continue
 
             else:
-                self.ents.append(ent)
                 self.files.append(ent.path)
 
     def getfiles(self):

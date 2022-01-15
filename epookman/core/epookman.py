@@ -4,7 +4,7 @@
 # This file is part of epookman, the console ebook manager.
 # License: MIT, see the file "LICENCS" for details.
 
-# TODOO: Threads or async await, for scane, status print and more
+# TODOO: Threads, for scane
 # FIXMEEEEE: Breaks when books list bigger than the screen
 # FIXMEE: Adding to fav and mark as read..
 
@@ -18,7 +18,7 @@ from time import sleep
 
 import magic
 
-from epookman.api.dirent import Dirent
+from epookman.api.dirent import Dirent, check_path
 from epookman.api.mime import T_EBOOK, Mime
 from epookman.core.curses import *
 
@@ -256,7 +256,7 @@ class Epookman(object):
 
     def fetch_dirs(self):
         res = self.cur.execute("SELECT DISTINCT * FROM DIRS ORDER BY PATH;")
-        dirs = []
+        dirs = list()
 
         if not res:
             return dirs
@@ -542,7 +542,12 @@ class Epookman(object):
             self.change_ebook_status(name=name, category=value)
 
         elif key == "add_dir":
-            name = name.replace("~", os.getenv("HOME"))
+            if name[0] == "~":
+                name = name.replace("~", os.getenv("HOME"))
+            if not check_path(name):
+                self.status_bar.print("Not a valid path", curses.color_pair(5))
+                return
+
             Dir = Dirent(name)
             self.addir(Dir)
             self.scane()

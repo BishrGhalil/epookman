@@ -11,7 +11,6 @@ from curses import panel
 from difflib import get_close_matches
 
 from epookman.data.help import Help
-from epookman.api.dirent import check_path
 
 
 class Menu(object):
@@ -104,12 +103,7 @@ class Menu(object):
 
             elif key == ord("a"):
                 string = self.input("Directory path: ")
-                if not check_path(string):
-                    string = self.items[0]["take_action"](
-                        key="print_status", name="Not a valid path")
-
-                else:
-                    self.items[0]["take_action"](key="add_dir", name=string)
+                self.items[0]["take_action"](key="add_dir", name=string)
 
             elif key == ord("f"):
                 item = self.items[self.position]

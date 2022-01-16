@@ -125,11 +125,12 @@ class Menu(object):
                 item = self.items[self.position]
                 item["take_action"](key="toggle_fav", name=item["string"])
 
-            elif key == ord("m"):
+            elif key == ord("r"):
                 item = self.items[self.position]
-                item["take_action"](key="toggle_mark",
-                                    name=item["string"],
-                                    value="have_read")
+                if item.get("type") == "ebook":
+                    item["take_action"](key="toggle_mark",
+                                        name=item["string"],
+                                        value="have_read")
             elif key == ord("t"):
                 item = self.items[self.position]
                 item["take_action"](key="toggle_mark",
@@ -227,7 +228,7 @@ class StatusBar(object):
                            mode)
         self.window.refresh()
         key = self.window.getch()
-        if key in [ord('y')]:
+        if key == ord("y"):
             return True
 
         return False

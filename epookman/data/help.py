@@ -26,6 +26,7 @@ class Help(object):
             ["t", "mark as 'haven't read'"],
             ["u", "Update database (scane)"],
             ["q", "Quite"],
+            ["/", "Search"],
             ["?", "Show help"],
         ]
 

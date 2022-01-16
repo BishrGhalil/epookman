@@ -5,8 +5,6 @@
 # License: MIT, see the file "LICENCS" for details.
 
 # TODOO: Threads, for scane
-# FIXMEEEEE: Breaks when books list bigger than the screen
-# FIXMEE: Adding to fav and mark as read..
 
 import curses
 import logging
@@ -20,6 +18,7 @@ import magic
 
 from epookman.api.dirent import Dirent, check_path
 from epookman.api.mime import T_EBOOK, Mime
+from epookman.core.config import Config
 from epookman.core.curses import *
 
 
@@ -89,7 +88,8 @@ class Epookman(object):
         self.screen = stdscreen
 
         y_val = self.screen.getmaxyx()[0]
-        self.menu_window = self.screen.subwin(y_val - 2, 0, 0, 0)
+        self.menu_window = self.screen.subwin(y_val - Config.padding - 1, 0, 0,
+                                              0)
         self.status_bar = StatusBar(stdscreen)
 
         self.ebook_reader = "zathura"
@@ -491,11 +491,11 @@ class Epookman(object):
             ebook.toggle_fav()
         elif status:
             if status == "havent_read":
+                if ebook.status == 1 or ebook.status == 2:
+                    ebook.status = 0
+            if status == "have_read":
                 if ebook.status == 0 or ebook.status == 1:
                     ebook.status = 2
-            if status == "have_read":
-                if ebook.status == 0 or ebook.status == 2:
-                    ebook.status = 1
 
             else:
                 ebook.set_status(status)
@@ -506,7 +506,6 @@ class Epookman(object):
             if i.name == ebook.name:
                 self.ebooks[index] = ebook
 
-        self.ebooks[index] = ebook
         self.commit_ebooks_sql()
         logging.debug("Changed ebook %s status to reading", ebook.name)
 
@@ -533,13 +532,21 @@ class Epookman(object):
             self.scane()
 
         elif key == "toggle_mark":
-            self.change_ebook_status(name=name)
+            self.change_ebook_status(name=name, status=value)
+            if value == "have_read":
+                value = "Have read"
+            else:
+                value = "Haven't read"
+
+            self.status_bar.print("Ebook marked as %s" % value, curses.color_pair(4))
 
         elif key == "toggle_fav":
             self.change_ebook_status(name=name, fav=True)
+            self.status_bar.print("Ebook add to favorites")
 
         elif key == "add_category":
             self.change_ebook_status(name=name, category=value)
+            self.status_bar.print("Ebook add to category %s" % value, curses.color_pair(4))
 
         elif key == "add_dir":
             if name[0] == "~":

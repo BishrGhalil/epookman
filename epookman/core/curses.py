@@ -125,6 +125,8 @@ class Menu(object):
 
             elif key == ord("f"):
                 item = self.items[self.position]
+                if item.get("type") != "ebook":
+                    continue
                 item["take_action"](key="toggle_fav", name=item["string"])
 
             elif key == ord("r"):
@@ -135,6 +137,8 @@ class Menu(object):
                                         value="have_read")
             elif key == ord("t"):
                 item = self.items[self.position]
+                if item.get("type") != "ebook":
+                    continue
                 item["take_action"](key="toggle_mark",
                                     name=item["string"],
                                     value="havent_read")
@@ -146,6 +150,8 @@ class Menu(object):
             elif key == ord("c"):
                 category = self.input("Category name: ")
                 item = self.items[self.position]
+                if item.get("type") != "ebook":
+                    continue
                 item["take_action"](key="add_category",
                                     name=item["string"],
                                     value=category)

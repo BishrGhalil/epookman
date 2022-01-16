@@ -545,7 +545,7 @@ class Epookman(object):
 
         elif key == "toggle_fav":
             self.change_ebook_status(name=name, fav=True)
-            self.status_bar.print("Ebook add to favorites")
+            self.status_bar.print("Ebook add to favorites", curses.color_pair(4))
 
         elif key == "add_category":
             self.change_ebook_status(name=name, category=value)

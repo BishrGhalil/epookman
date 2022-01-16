@@ -10,6 +10,7 @@ import logging
 from curses import panel
 from difflib import get_close_matches
 
+from epookman.core.config import Config
 from epookman.data.help import Help
 
 
@@ -23,22 +24,36 @@ class Menu(object):
 
         self.position = 0
         self.items = items
+        self.max_y, self.max_x = self.window.getmaxyx()
 
         self.help = Help(stdscreen)
+        self.start_print = 0
 
     def display(self):
         while True:
             self.window.clear()
+
+            if self.position >= self.max_y - 2:
+                self.start_print = self.position - self.max_y + 2
+                self.start_print %= len(self.items)
+            else:
+                self.start_print = 0
+
             if not self.items:
                 self.print_error("Empty", curses.color_pair(5))
 
             else:
-                for index, item in enumerate(self.items):
-                    if index == self.position:
+                for index in range(0, len(self.items)):
+                    if index == self.max_y - 1:
+                        break
+
+                    item = self.items[index + self.start_print]
+                    if index + self.start_print == self.position:
                         if item.get("type") != "ebook":
                             mode = curses.color_pair(1)
                         else:
                             mode = curses.color_pair(3)
+
                     else:
                         if item.get("type") != "ebook":
                             mode = curses.color_pair(2)
@@ -46,7 +61,8 @@ class Menu(object):
                             mode = curses.color_pair(4)
 
                     msg = "%s" % (item["string"])
-                    self.window.addstr(1 + index, 1, msg, mode)
+                    self.window.addstr(Config.padding + index, Config.padding,
+                                       msg, mode)
 
             key = self.window.getch()
 
@@ -134,9 +150,9 @@ class Menu(object):
         self.update()
 
     def input(self, prompt):
-        y_value = self.window.getmaxyx()[0]
         msg = "%s" % prompt
-        self.window.addstr(y_value - 1, 0, msg, curses.A_NORMAL)
+        self.window.addstr(self.max_y - 1, Config.padding, msg,
+                           curses.A_NORMAL)
         self.window.refresh()
         string = str()
         while True:
@@ -146,14 +162,15 @@ class Menu(object):
 
             elif key == curses.KEY_BACKSPACE:
                 if string:
-                    self.window.delch(y_value - 1, len(string) + 1)
+                    self.window.delch(self.max_y - 1, len(string) + 1)
                     self.window.refresh()
                     string = string[0:-1]
             else:
                 string += chr(key)
 
             msg = "%s%s" % (prompt, string)
-            self.window.addstr(y_value - 1, 0, msg, curses.A_NORMAL)
+            self.window.addstr(self.max_y - 1, Config.padding, msg,
+                               curses.A_NORMAL)
             self.window.refresh()
 
     def init_window_panel(self):
@@ -171,7 +188,7 @@ class Menu(object):
             self.position = len(self.items) - 1
 
     def print_error(self, msg, mode=curses.A_BOLD):
-        self.window.addstr(1, 1, msg, mode)
+        self.window.addstr(1, Config.padding, msg, mode)
 
     def update(self):
         self.window.clear()
@@ -188,22 +205,26 @@ class StatusBar(object):
 
     def __init__(self, stdscreen):
         self.stdscreen = stdscreen
+        self.stdmax_y, self.stdmax_x = self.stdscreen.getmaxyx()
         self.window = None
         self.init_window()
+        self.max_y, self.max_x = self.window.getmaxyx()
 
     def init_window(self):
-        y_value, x_value = self.stdscreen.getmaxyx()
-        self.window = self.stdscreen.subwin(y_value - 1, 0)
+        self.window = self.stdscreen.subwin(self.stdmax_y - Config.padding - 1,
+                                            0)
         self.window.keypad(1)
 
     def print(self, msg, mode=curses.A_NORMAL):
         self.window.clear()
-        self.window.addstr(0, 0, msg, mode)
+        self.window.addstr(self.max_y - Config.padding, Config.padding, msg,
+                           mode)
         self.window.refresh()
 
     def confirm(self, msg, mode=curses.A_BOLD):
         self.window.clear()
-        self.window.addstr(0, 0, msg, mode)
+        self.window.addstr(self.max_y - Config.padding, Config.padding, msg,
+                           mode)
         self.window.refresh()
         key = self.window.getch()
         if key in [ord('y')]:

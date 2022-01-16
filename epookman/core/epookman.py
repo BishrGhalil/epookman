@@ -5,6 +5,9 @@
 # License: MIT, see the file "LICENCS" for details.
 
 # TODOO: Threads, for scane
+# TODOO: Configuration file
+# TODOOO: print ebook details, meta data ...
+# FIXMEE: ebooks from sub dirs are deleted when deleting main dirs
 
 import curses
 import logging

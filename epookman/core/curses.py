@@ -33,8 +33,8 @@ class Menu(object):
         while True:
             self.window.clear()
 
-            if self.position >= self.max_y - 2:
-                self.start_print = self.position - self.max_y + 2
+            if self.position >= self.max_y - 3:
+                self.start_print = self.position - self.max_y + 3
                 self.start_print %= len(self.items)
             else:
                 self.start_print = 0
@@ -44,7 +44,7 @@ class Menu(object):
 
             else:
                 for index in range(0, len(self.items)):
-                    if index == self.max_y - 1:
+                    if index == self.max_y - 2:
                         break
 
                     item = self.items[index + self.start_print]
@@ -119,6 +119,8 @@ class Menu(object):
 
             elif key == ord("a"):
                 string = self.input("Directory path: ")
+                if not string: 
+                    continue
                 self.items[0]["take_action"](key="add_dir", name=string)
 
             elif key == ord("f"):

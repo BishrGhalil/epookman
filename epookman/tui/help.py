@@ -5,13 +5,15 @@
 # License: MIT, see the file "LICENCS" for details.
 """Curses Help Classe for epookman"""
 
+from epookman.tui.ui import UIElement
+from epookman.core.config import Config
 
-class Help(object):
+
+class Help(UIElement):
 
     def __init__(self, stdscreen):
-        x_value = 1
-        y_value = 0
-        self.window = stdscreen.subwin(x_value, y_value)
+        UIElement.__init__(self=self, name="help", stdscreen=stdscreen)
+        self.init_window()
 
         self.keybinds = [
             ["h", "Move left"],
@@ -47,3 +49,9 @@ class Help(object):
         key = self.window.getkey()
         self.window.clear()
         self.window.refresh()
+
+    def init_window(self):
+        y_value = 0
+        x_value = 0
+        self.window = self.stdscreen.subwin(Config.padding + y_value,
+                                            Config.padding + x_value)

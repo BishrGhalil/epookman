@@ -4,7 +4,7 @@
 # This file is part of epookman, the console ebook manager.
 # License: MIT, see the file "LICENCS" for details.
 
-# TODOO: Threads, for scane
+# TODO: Threads, for scane
 # TODOO: Configuration file
 # TODOOO: print ebook details and meta data
 # TODO: tests
@@ -515,7 +515,7 @@ class Epookman(object):
 
         elif key == "toggle_fav":
             self.change_ebook_status(name=name, fav=True)
-            self.statusbar.print("Ebook add to favorites",
+            self.statusbar.print("Ebook add to favorites toggled",
                                  curses.color_pair(4))
 
         elif key == "add_category":

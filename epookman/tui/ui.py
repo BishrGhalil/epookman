@@ -5,6 +5,7 @@
 # License: MIT, see the file "LICENCS" for details.
 """Curses UI Classes and Functions"""
 from curses import A_NORMAL, KEY_ENTER, KEY_BACKSPACE
+from epookman.core.config import Config
 
 
 class UIElement(object):

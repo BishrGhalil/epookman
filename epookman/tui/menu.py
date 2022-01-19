@@ -3,7 +3,7 @@
 
 # This file is part of epookman, the console ebook manager.
 # License: MIT, see the file "LICENCS" for details.
-"""Curses UI Classes and Functions"""
+"""Menu class and api"""
 
 import curses
 import logging
@@ -12,23 +12,24 @@ from difflib import get_close_matches
 
 from epookman.core.config import Config
 from epookman.api.ebook import Ebook
-from epookman.data.help import Help
+from epookman.tui.help import Help
+from epookman.tui.ui import UIElement
 
 
-class Menu(object):
+class Menu(UIElement):
 
     def __init__(self, name, items, stdscreen):
-        self.stdscreen = stdscreen
-        self.init_window_panel()
+        UIElement.__init__(self=self, name=name, stdscreen=stdscreen)
+        self.init_window()
+        self.init_panel()
+        self.set_window_maxyx()
 
-        self.name = name
+        self.items = items
 
         self.position = 0
-        self.items = items
-        self.max_y, self.max_x = self.window.getmaxyx()
+        self.start_print = 0
 
         self.help = Help(stdscreen)
-        self.start_print = 0
 
     def display(self):
         while True:
@@ -159,33 +160,11 @@ class Menu(object):
 
         self.update()
 
-    def input(self, prompt):
-        msg = "%s" % prompt
-        self.window.addstr(self.max_y - 1, Config.padding, msg,
-                           curses.A_NORMAL)
-        self.window.refresh()
-        string = str()
-        while True:
-            key = self.window.getch()
-            if key in [ord("\n"), curses.KEY_ENTER]:
-                return string
-
-            elif key == curses.KEY_BACKSPACE:
-                if string:
-                    self.window.delch(self.max_y - 1, len(string) + 1)
-                    self.window.refresh()
-                    string = string[0:-1]
-            else:
-                string += chr(key)
-
-            msg = "%s%s" % (prompt, string)
-            self.window.addstr(self.max_y - 1, Config.padding, msg,
-                               curses.A_NORMAL)
-            self.window.refresh()
-
-    def init_window_panel(self):
+    def init_window(self):
         self.window = self.stdscreen.subwin(0, 0)
         self.window.keypad(1)
+
+    def init_panel(self):
         self.panel = panel.new_panel(self.window)
         self.panel.hide()
         panel.update_panels()
@@ -206,38 +185,3 @@ class Menu(object):
         panel.update_panels()
         self.panel.top()
         self.panel.show()
-
-    def kill(self):
-        self.window.erase()
-
-
-class StatusBar(object):
-
-    def __init__(self, stdscreen):
-        self.stdscreen = stdscreen
-        self.stdmax_y, self.stdmax_x = self.stdscreen.getmaxyx()
-        self.window = None
-        self.init_window()
-        self.max_y, self.max_x = self.window.getmaxyx()
-
-    def init_window(self):
-        self.window = self.stdscreen.subwin(self.stdmax_y - Config.padding - 1,
-                                            0)
-        self.window.keypad(1)
-
-    def print(self, msg, mode=curses.A_NORMAL):
-        self.window.clear()
-        self.window.addstr(self.max_y - Config.padding, Config.padding, msg,
-                           mode)
-        self.window.refresh()
-
-    def confirm(self, msg, mode=curses.A_BOLD):
-        self.window.clear()
-        self.window.addstr(self.max_y - Config.padding, Config.padding, msg,
-                           mode)
-        self.window.refresh()
-        key = self.window.getch()
-        if key == ord("y"):
-            return True
-
-        return False

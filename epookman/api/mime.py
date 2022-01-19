@@ -9,7 +9,7 @@ import re
 
 import magic
 
-T_EBOOK = 0
+MIME_TYPE_EBOOK = 0
 
 
 class Mime():
@@ -19,8 +19,7 @@ class Mime():
         self.mime.load()
         self.re_ebooks_types = "pdf|epub|mobi|azw"
 
-
     def mime_type(self, file):
         mime_t = self.mime.file(file)
         if re.search(self.re_ebooks_types, mime_t):
-            return T_EBOOK
+            return MIME_TYPE_EBOOK

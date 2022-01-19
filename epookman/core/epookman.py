@@ -6,8 +6,10 @@
 
 # TODOO: Threads, for scane
 # TODOO: Configuration file
-# TODOOO: print ebook details, meta data ...
+# TODOOO: print ebook details and meta data
+# TODO: tests
 # FIXMEE: ebooks from sub dirs are deleted when deleting main dirs
+# FIXMEEE: Cleaner Code
 
 import curses
 import logging
@@ -20,47 +22,11 @@ from time import sleep
 import magic
 
 from epookman.api.dirent import Dirent, check_path
-from epookman.api.mime import T_EBOOK, Mime
+from epookman.api.mime import MIME_TYPE_EBOOK, Mime
+from epookman.api.ebook import Ebook
 from epookman.core.config import Config
-from epookman.core.curses import *
-
-
-class Ebook():
-
-    def __init__(
-        self,
-        _id=0,
-        folder="",
-        name="",
-        category=None,
-        status=0,
-        fav=0,
-    ):
-
-        self.name = name
-        self.id = _id
-        self.folder = folder
-        self.category = category
-        self.status = status
-        self.fav = fav
-
-    def set_path(self, path):
-        self.folder = os.path.dirname(path)
-        self.name = os.path.basename(path)
-
-    def toggle_fav(self):
-        self.fav = not self.fav
-
-    def set_status(self, status):
-        if status.lower() == "reading":
-            self.status = 1
-        elif status.lower() == "have_read":
-            self.status = 2
-        elif status.lower() == "havnt_read":
-            self.status = 0
-
-    def set_category(self, category):
-        self.category = category
+from epookman.tui.menu import Menu
+from epookman.tui.statusbar import StatusBar
 
 
 class Epookman(object):
@@ -93,7 +59,7 @@ class Epookman(object):
         y_val = self.screen.getmaxyx()[0]
         self.menu_window = self.screen.subwin(y_val - Config.padding - 1, 0, 0,
                                               0)
-        self.status_bar = StatusBar(stdscreen)
+        self.statusbar = StatusBar(stdscreen)
 
         self.ebook_reader = "zathura"
 
@@ -215,18 +181,18 @@ class Epookman(object):
         logging.debug("Dir %s removed from dirs", path)
 
     def del_dir_refetch(self, path):
-        if self.status_bar.confirm(
+        if self.statusbar.confirm(
                 "Are you sure want to delete this directory? [y, n]",
                 curses.color_pair(5)):
             self.del_dir(path)
             self.ebooks = self.fetch_ebooks()
             self.ebooks_files_init()
-            self.status_bar.print("Directory has been deleted")
+            self.statusbar.print("Directory has been deleted")
             sleep(.5)
-            self.status_bar.print("Press ? to show help.")
+            self.statusbar.print("Press ? to show help.")
             self.kill_rerun_main_menu()
         else:
-            self.status_bar.print("Press ? to show help.")
+            self.statusbar.print("Press ? to show help.")
 
     def fetch_ebooks(self, key="*", where=None, sort_clause=None):
         if not sort_clause:
@@ -274,7 +240,7 @@ class Epookman(object):
     def kill_rerun_main_menu(self):
         self.make_menus()
         self.main_menu.kill()
-        self.main_menu.init_window_panel()
+        self.main_menu.init_window()
         if self.main_menu.display() == -1:
             self.exit(0)
 
@@ -473,7 +439,7 @@ class Epookman(object):
             msg = "Couldn't open %s" % uri
             logging.error(msg)
 
-        self.status_bar.print("Ebook added to Reading", curses.color_pair(4))
+        self.statusbar.print("Ebook added to Reading", curses.color_pair(4))
         self.kill_rerun_main_menu()
 
     def change_ebook_status(self,
@@ -493,12 +459,14 @@ class Epookman(object):
         if fav:
             ebook.toggle_fav()
         elif status:
-            if status == "havent_read":
-                if ebook.status == 1 or ebook.status == 2:
-                    ebook.status = 0
-            if status == "have_read":
-                if ebook.status == 0 or ebook.status == 1:
-                    ebook.status = 2
+            if status == Ebook.STATUS_HAVE_NOT_READ and ebook.status in [
+                    Ebook.STATUS_READING, Ebook.STATUS_HAVE_READ
+            ]:
+                ebook.status = Ebook.STATUS_HAVE_NOT_READ
+            if status == Ebook.STATUS_HAVE_READ and ebook.status in [
+                    Ebook.STATUS_HAVE_NOT_READ, Ebook.STATUS_READING
+            ]:
+                ebook.status = Ebook.STATUS_HAVE_READ
 
             else:
                 ebook.set_status(status)
@@ -513,7 +481,7 @@ class Epookman(object):
         logging.debug("Changed ebook %s status to reading", ebook.name)
 
     def scane(self):
-        self.status_bar.print("Scanning for ebooks...")
+        self.statusbar.print("Scanning for ebooks, Please wait.")
         mime = Mime()
         self.ebooks_files_init()
 
@@ -521,12 +489,13 @@ class Epookman(object):
             Dir.getfiles()
             for file in Dir.files:
                 if mime.mime_type(
-                        file) == T_EBOOK and file not in self.ebooks_files:
+                        file
+                ) == MIME_TYPE_EBOOK and file not in self.ebooks_files:
                     ebook = Ebook()
                     ebook.set_path(file)
                     self.ebooks.append(ebook)
 
-        self.status_bar.print("Done.", curses.color_pair(4))
+        self.statusbar.print("Done.", curses.color_pair(4))
 
         self.update_db()
 
@@ -541,21 +510,24 @@ class Epookman(object):
             else:
                 value = "Haven't read"
 
-            self.status_bar.print("Ebook marked as %s" % value, curses.color_pair(4))
+            self.statusbar.print("Ebook marked as %s" % value,
+                                 curses.color_pair(4))
 
         elif key == "toggle_fav":
             self.change_ebook_status(name=name, fav=True)
-            self.status_bar.print("Ebook add to favorites", curses.color_pair(4))
+            self.statusbar.print("Ebook add to favorites",
+                                 curses.color_pair(4))
 
         elif key == "add_category":
             self.change_ebook_status(name=name, category=value)
-            self.status_bar.print("Ebook add to category %s" % value, curses.color_pair(4))
+            self.statusbar.print("Ebook add to category %s" % value,
+                                 curses.color_pair(4))
 
         elif key == "add_dir":
             if name[0] == "~":
                 name = name.replace("~", os.getenv("HOME"))
             if not check_path(name):
-                self.status_bar.print("Not a valid path", curses.color_pair(5))
+                self.statusbar.print("Not a valid path", curses.color_pair(5))
                 return
 
             Dir = Dirent(name)
@@ -563,7 +535,7 @@ class Epookman(object):
             self.scane()
 
         elif key == "print_status":
-            self.status_bar.print(name)
+            self.statusbar.print(name)
 
         self.commit_ebooks_sql()
         self.commit_dirs_sql()
@@ -575,7 +547,7 @@ class Epookman(object):
 
     def main(self):
         self.make_menus()
-        self.status_bar.print("Press ? to show help.")
+        self.statusbar.print("Press ? to show help.")
         if self.main_menu.display() == -1:
             self.exit(0)
 

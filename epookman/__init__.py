@@ -3,7 +3,6 @@
 """A terminal ebook manager written in Python. Inspired by ranger file manager. It supports VI key bindings, And provides a minimalistic curses interface.
 """
 
-
 import os
 from sys import version_info
 import epookman.data.log

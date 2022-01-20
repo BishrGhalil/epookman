@@ -1,12 +1,10 @@
 all: install
 
 install:
-	sudo python setup.py install_exec install --optimize=1 --record=install_log.log
-	sudo chmod +x epookman.py
-	sudo cp epookman.py /usr/bin/epookman
+	python setup.py install_exec install --optimize=1 --record=install_log.log
 
 uninstall:
-	sudo rm -rf /usr/bin/epookman
+	rm -rf /usr/bin/epookman
 
 run:
 	python3 epookman.py

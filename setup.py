@@ -36,7 +36,7 @@ class InstallExec(distutils.cmd.Command):
     def run(self):
         """Run command."""
         home = os.getenv("HOME")
-        dest_paths = ['/usr/bin/epookman', os.path.join(home, ".local/bin/epookman")]
+        dest_paths = ['/usr/bin/epookman']
         here = os.path.abspath(os.path.dirname(__file__))
         src_path = os.path.join(here, "epookman.py")
         for dest_path in dest_paths:
@@ -51,7 +51,7 @@ setup(
     description=DESCRIPTION,
     long_description_content_type="text/markdown",
     long_description=long_description,
-    packages=find_packages(exclude=('epookman.data', )),
+    packages=find_packages(),
     url='https://github.com/BishrGhalil/epookman',
     install_requires=['file-magic', 'curses-utils', 'PyPDF2', 'epub_meta'],
     keywords=['python', 'ebook', 'vim', 'console', 'ebook manager', 'curses'],

@@ -5,9 +5,10 @@
 # License: MIT, see the file "LICENCS" for details.
 """statusbar class and api"""
 
-from curses import A_NORMAL, A_BOLD
-from epookman.tui.ui import UIElement
+from curses import A_BOLD, A_NORMAL
+
 from epookman.core.config import Config
+from epookman.tui.ui import UIElement
 
 
 class StatusBar(UIElement):
@@ -27,6 +28,11 @@ class StatusBar(UIElement):
         self.window.addstr(self.max_y - Config.padding, Config.padding, msg,
                            mode)
         self.window.refresh()
+
+    def input(self, msg, mode=A_NORMAL):
+        self.window.clear()
+        string = UIElement.input(self, msg, mode)
+        return string
 
     def confirm(self, msg, mode=A_BOLD):
         ans = self.input(msg)

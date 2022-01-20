@@ -9,6 +9,7 @@ import curses
 
 class Config():
     padding = 1
+    ebook_reader = "zathura"
 
 
 class Key:
@@ -29,3 +30,4 @@ class Key:
     KEY_HAVE_NOT_READ = (ord('t'), )
     KEY_SCANE = (ord('u'), )
     KEY_ADD_CATEGORY = (ord('c'), )
+    KEY_DEL_DIR = (ord('d'), )

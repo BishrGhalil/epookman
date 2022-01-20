@@ -4,27 +4,26 @@
 # This file is part of epookman, the console ebook manager.
 # License: MIT, see the file "LICENCS" for details.
 
-# TODO: Threads, for scane
 # TODOO: Configuration file
 # TODOOO: print ebook details and meta data
+# TODO: Threads, for scane
 # TODO: tests
+# TODO: command line arguments
 # FIXMEE: ebooks from sub dirs are deleted when deleting main dirs
-# FIXMEEE: Cleaner Code
+# FIXMEEEE: can't mark as have not read
 
 import curses
 import logging
 import os
 import re
-import sqlite3
-import ss
 from time import sleep
-
 
 import magic
 
+from epookman.api.db import *
 from epookman.api.dirent import Dirent, check_path
-from epookman.api.mime import MIME_TYPE_EBOOK, Mime
 from epookman.api.ebook import Ebook
+from epookman.api.mime import MIME_TYPE_EBOOK, Mime
 from epookman.core.config import Config
 from epookman.tui.menu import Menu
 from epookman.tui.statusbar import StatusBar
@@ -33,61 +32,46 @@ from epookman.tui.statusbar import StatusBar
 class Epookman(object):
 
     def __init__(self, stdscreen):
-        self.db_name = "pookman.db"
+        self.db_name = "epookman.db"
         self.db_path = os.path.join(os.getenv("HOME"), self.db_name)
-        logging.debug("Initialized db name to %s and db path to %s",
-                      self.db_name, self.db_path)
 
-        self.conn = None
-        self.cur = None
+        self.db_init(self.db_path)
+        self.db_fetch(self.conn)
 
-        self.connect()
-        logging.debug("Made connection to the database")
-
-        self.create_tables_sql()
-        logging.debug("Tables created")
-
-        self.dirs = self.fetch_dirs()
-        logging.debug("Fetched dirs from database")
-        self.ebooks = self.fetch_ebooks()
-        logging.debug("Fetched ebooks from database")
         self.ebooks_files = self.ebooks_files_init()
-        logging.debug("Making ebooks_files list from ebooks list")
 
         self.main_menu = None
         self.screen = stdscreen
 
-        y_val = self.screen.getmaxyx()[0]
-        self.menu_window = self.screen.subwin(y_val - Config.padding - 1, 0, 0,
-                                              0)
+        self.menu_window_init()
         self.statusbar = StatusBar(stdscreen)
 
-        self.ebook_reader = "zathura"
+        self.ebook_reader = Config.ebook_reader
 
     def __del__(self):
         self.close_connection()
-        logging.debug("Connection closed after deleting object")
 
     def addir(self, Dir):
         if isinstance(Dir, Dirent) and Dir not in self.dirs:
             self.dirs.append(Dir)
-            logging.debug("Added dir %s to object dirs", Dir.path)
+            return True
 
         else:
             logging.error("Not a valid Dirent object %s", Dir)
+            return False
 
-    def addirs(self, uris):
+    def addir_commit(self, conn, Dir):
+        if self.addir(Dir):
+            commit_dirs(conn, self.dirs)
+
+    def addirs_commit(self, conn, uris):
         if not isinstance(uris, list) and not isinstance(uris, tuple):
             logging.error("Not a valid list or tuple")
+
         else:
             for uri in uris:
-                logging.debug("Trying to create Dirent object from Dir %s",
-                              uri)
                 Dir = Dirent(uri)
-                self.addir(Dir)
-
-            self.commit_dirs_sql()
-            logging.debug("Commited dirs to database")
+                self.addir_commit(conn, Dir)
 
     def close_connection(self):
         if self.conn:
@@ -95,148 +79,62 @@ class Epookman(object):
 
         self.conn = None
 
-    def create_tables_sql(self):
-        self.cur.execute(
-                "CREATE TABLE IF NOT EXISTS DIRS(" \
-                "ID INTEGER PRIMARY KEY AUTOINCREMENT," \
-                "PATH           TEXT NOT NULL," \
-                "RECURS         INT NOT NULL);"
-        )
-        logging.debug("Table DIRS Created")
-
-        self.cur.execute(
-                "CREATE TABLE IF NOT EXISTS BOOKS(" "ID INTEGER PRIMARY KEY AUTOINCREMENT," "FOLDER         TEXT    NOT NULL," \
-                "NAME           TEXT    NOT NULL," \
-                "CATEGORY       TEXT," \
-                "STATUS         INT," \
-                "FAV            INT);")
-
-        logging.debug("Table Books Created")
-
-        self.cur.execute("CREATE INDEX IF NOT EXISTS idx_fav ON BOOKS (FAV);")
-        logging.debug("Index on BOOKS (FAV) Created")
-
-        self.cur.execute(
-            "CREATE INDEX IF NOT EXISTS idx_category ON BOOKS (CATEGORY);")
-        logging.debug("Index on BOOKS (CATEGORY) Created")
-
-        self.cur.execute(
-            "CREATE INDEX IF NOT EXISTS idx_status ON BOOKS (STATUS);")
-        logging.debug("Index on BOOKS (STATUS) Created")
-
-        self.cur.execute(
-            "CREATE INDEX IF NOT EXISTS idx_folder ON BOOKS (FOLDER);")
-        logging.debug("Index on BOOKS (FOLDER) Created")
-
-        self.conn.commit()
-        logging.debug("Changed commited to database")
-
-    def connect(self):
-        self.conn = sqlite3.connect(self.db_path)
-        self.cur = self.conn.cursor()
-        return self.conn
-
-    def commit_dirs_sql(self):
-        for Dir in self.dirs:
-            data = (Dir.path, Dir.path, Dir.recurs)
-            self.cur.execute(
-                "INSERT OR REPLACE INTO DIRS (ID, PATH, RECURS) \
-                              VALUES ((SELECT ID FROM DIRS WHERE PATH = ?), ?, ?);",
-                data)
-            logging.debug("Dir %s Inserted to database", Dir.path)
-
-        self.conn.commit()
-        logging.debug("Changes commited to database")
-
-    def commit_ebooks_sql(self):
-        for ebook in self.ebooks:
-            data = (ebook.name, ebook.folder, ebook.name, ebook.category,
-                    ebook.status, ebook.fav)
-            self.cur.execute(
-                "INSERT OR REPLACE INTO BOOKS (ID, FOLDER, NAME, " \
-                "CATEGORY, STATUS, FAV) " \
-                "VALUES ((SELECT ID FROM BOOKS WHERE NAME = ?), ?, ?, ?, ?, ?);",
-            data)
-            logging.debug("Ebook %s Inserted to database", ebook.name)
-
-        self.conn.commit()
-        logging.debug("Changes commited to database")
-
     def ebooks_files_init(self):
         self.ebooks_files = [
             os.path.join(ebook.folder, ebook.name) for ebook in self.ebooks
         ]
 
-    def del_dir(self, path):
-        res = self.cur.execute("DELETE FROM DIRS WHERE PATH=?;", (path, ))
-        res = self.cur.execute(
-            f"DELETE FROM BOOKS WHERE FOLDER LIKE '{path}%';")
-        logging.debug("Dir %s and all of its Ebooks Deleted from database",
-                      path)
-        self.conn.commit()
-        logging.debug("Changes commited to database")
+    def del_dir(self, conn, path):
+        del_dir(conn, path)
+        del_ebooks(conn, directory=path)
+
         for Dir in self.dirs:
             if Dir.path == path:
                 self.dirs.remove(Dir)
 
-        logging.debug("Dir %s removed from dirs", path)
+    def del_dir_refetch(self, conn, path):
+        self.del_dir(conn, path)
+        self.dirs = fetch_dirs(conn)
+        self.ebooks = fetch_ebooks(conn)
+        self.ebooks_files_init()
 
-    def del_dir_refetch(self, path):
-        if self.statusbar.confirm(
-                "Are you sure want to delete this directory? [y, n]",
-                curses.color_pair(5)):
-            self.del_dir(path)
-            self.ebooks = self.fetch_ebooks()
-            self.ebooks_files_init()
-            self.statusbar.print("Directory has been deleted")
-            sleep(.5)
-            self.statusbar.print("Press ? to show help.")
-            self.kill_rerun_main_menu()
-        else:
-            self.statusbar.print("Press ? to show help.")
+        self.statusbar.print("Directory has been deleted",
+                             curses.color_pair(4))
+        # Delay to make the message visable
+        sleep(.5)
+        self.kill_rerun_main_menu()
 
-    def fetch_ebooks(self, key="*", where=None, sort_clause=None):
-        if not sort_clause:
-            sort_clause = "ORDER BY NAME, FAV DESC"
+    def db_init(self, db_path):
+        self.conn = connect(db_path)
+        self.cur = self.conn.cursor()
+        logging.debug(f"Made connection to the database {self.db_path}")
 
-        if not where:
-            res = self.cur.execute("SELECT DISTINCT %s FROM BOOKS %s;" %
-                                   (key, sort_clause))
-        else:
-            res = self.cur.execute(
-                "SELECT DISTINCT %s FROM BOOKS WHERE %s %s;" %
-                (key, where, sort_clause))
+        create_tables(self.conn)
+        logging.debug("Tables created")
 
-        ebooks = []
-        if not res:
-            return ebooks
+    def db_fetch(self, conn):
 
-        for row in res:
-            if len(row) == 1:
-                ebooks.append(row[0])
-            else:
-                ebook = Ebook(folder=row[1],
-                              name=row[2],
-                              category=row[3],
-                              status=row[4],
-                              fav=row[5])
-                ebooks.append(ebook)
+        self.dirs = fetch_dirs(conn)
+        logging.debug("Fetched dirs from database")
 
-        return ebooks
+        self.ebooks = fetch_ebooks(conn)
+        logging.debug("Fetched ebooks from database")
 
-    def fetch_dirs(self):
-        res = self.cur.execute("SELECT DISTINCT * FROM DIRS ORDER BY PATH;")
-        dirs = list()
+    def input_add_dir(self):
+        string = self.statusbar.input("Directory path: ")
+        if not string:
+            return
+        if string.startswith("~"):
+            string = string.replace("~", os.getenv("HOME"))
+        string = os.path.realpath(string)
+        if not check_path(string):
+            logging.error("Not a valid path %s", string)
+            self.statusbar.print("Not a valid path", curses.color_pair(5))
+            return
 
-        if not res:
-            return dirs
-
-        for row in res:
-            Dir = Dirent()
-            Dir.set_values(row[1], row[2])
-            dirs.append(Dir)
-
-        return dirs
+        Dir = Dirent(string)
+        self.addir_commit(self.conn, Dir)
+        self.statusbar.print("Directory has been added to database")
 
     def kill_rerun_main_menu(self):
         self.make_menus()
@@ -245,30 +143,33 @@ class Epookman(object):
         if self.main_menu.display() == -1:
             self.exit(0)
 
+    def menu_window_init(self):
+        y_val = self.screen.getmaxyx()[0]
+        self.menu_window = self.screen.subwin(y_val - Config.padding - 1, 0, 0,
+                                              0)
+
     def make_menus(self):
 
         # reading menu
         reading_menu_items = [{
             "string": ebook.name,
             "enter_action": self.open_ebook,
-            "args": [
-                ebook,
-            ],
+            "args": (ebook, ),
             "type": "ebook",
             "take_action": self.take_action,
-        } for ebook in self.fetch_ebooks(where="status=1")]
+        } for ebook in fetch_ebooks(self.conn,
+                                    where=f"status={Ebook.STATUS_READING}")]
         reading_menu = Menu("reading", reading_menu_items, self.menu_window)
 
         # have read menu
         have_read_menu_items = [{
             "string": ebook.name,
             "enter_action": self.open_ebook,
-            "args": [
-                ebook,
-            ],
+            "args": (ebook, ),
             "type": "ebook",
             "take_action": self.take_action
-        } for ebook in self.fetch_ebooks(where="status=2")]
+        } for ebook in fetch_ebooks(self.conn,
+                                    where=f"status={Ebook.STATUS_HAVE_READ}")]
         have_read_menu = Menu("have_read", have_read_menu_items,
                               self.menu_window)
 
@@ -276,12 +177,11 @@ class Epookman(object):
         havent_read_menu_items = [{
             "string": ebook.name,
             "enter_action": self.open_ebook,
-            "args": [
-                ebook,
-            ],
+            "args": (ebook, ),
             "type": "ebook",
             "take_action": self.take_action
-        } for ebook in self.fetch_ebooks(where="status=0")]
+        } for ebook in fetch_ebooks(
+            self.conn, where=f"status={Ebook.STATUS_HAVE_NOT_READ}")]
         havent_read_menu = Menu("havent_read", havent_read_menu_items,
                                 self.menu_window)
 
@@ -289,28 +189,25 @@ class Epookman(object):
         all_menu_items = [{
             "string": ebook.name,
             "enter_action": self.open_ebook,
-            "args": [
-                ebook,
-            ],
+            "args": (ebook, ),
             "type": "ebook",
             "take_action": self.take_action
-        } for ebook in self.fetch_ebooks()]
+        } for ebook in fetch_ebooks(self.conn)]
         all_menu = Menu("all", all_menu_items, self.menu_window)
 
-        # folders men
+        # folders menu
         folders_menu_items = []
-        self.dirs = self.fetch_dirs()
+        self.dirs = fetch_dirs(self.conn)
         for Dir in self.dirs:
             dir_ebooks = [
-                ebook for ebook in self.fetch_ebooks(
-                    where=f"folder like \'{Dir.path}%\'")
+                ebook
+                for ebook in fetch_ebooks(self.conn,
+                                          where=f"folder like \'{Dir.path}%\'")
             ]
             dir_menu_items = [{
                 "string": ebook.name,
                 "enter_action": self.open_ebook,
-                "args": [
-                    ebook,
-                ],
+                "args": (ebook, ),
                 "type": "ebook",
                 "take_action": self.take_action
             } for ebook in dir_ebooks]
@@ -326,18 +223,16 @@ class Epookman(object):
 
         # categories menu
         categories_menu_items = []
-        categories_list = self.fetch_ebooks(key="category")
+        categories_list = fetch_ebooks(self.conn, key="category")
         for cat in categories_list:
             cat_ebooks = [
-                ebook
-                for ebook in self.fetch_ebooks(where="category=\'%s\'" % cat)
+                ebook for ebook in fetch_ebooks(self.conn,
+                                                where="category=\'%s\'" % cat)
             ]
             cat_menu_items = [{
                 "string": ebook.name,
                 "enter_action": self.open_ebook,
-                "args": [
-                    ebook,
-                ],
+                "args": (ebook, ),
                 "type": "ebook",
                 "take_action": self.take_action
             } for ebook in cat_ebooks]
@@ -356,99 +251,77 @@ class Epookman(object):
         favorites_menu_items = [{
             "string": ebook.name,
             "enter_action": self.open_ebook,
-            "args": [
-                ebook,
-            ],
+            "args": (ebook, ),
             "type": "ebook",
             "take_action": self.take_action
-        } for ebook in self.fetch_ebooks(where="fav=1")]
+        } for ebook in fetch_ebooks(self.conn, where="fav=1")]
         favorites_menu = Menu("favorites", favorites_menu_items,
                               self.menu_window)
 
-        # delete dir menu
-        delete_dir_menu_item = [{
-            "string": Dir.path,
-            "enter_action": self.del_dir_refetch,
-            "args": [
-                Dir.path,
-            ],
-            "type": "dir",
-            "take_action": self.take_action
-        } for Dir in self.fetch_dirs()]
-        delete_dir_menu = Menu("delete_dir", delete_dir_menu_item,
-                               self.menu_window)
-
-        main_menu_items = [
+        main_menu_items = (
             {
                 "string": "Reading",
                 "enter_action": reading_menu.display,
-                "type": "dir",
+                "type": "menu",
                 "take_action": self.take_action
             },
             {
                 "string": "Folders",
                 "enter_action": folders_menu.display,
-                "type": "dir",
+                "type": "menu",
                 "take_action": self.take_action
             },
             {
                 "string": "Favorites",
                 "enter_action": favorites_menu.display,
-                "type": "dir",
+                "type": "menu",
                 "take_action": self.take_action
             },
             {
                 "string": "Categories",
                 "enter_action": categories_menu.display,
-                "type": "dir",
+                "type": "menu",
                 "take_action": self.take_action
             },
             {
                 "string": "Have read",
                 "enter_action": have_read_menu.display,
-                "type": "dir",
+                "type": "menu",
                 "take_action": self.take_action
             },
             {
                 "string": "Haven't read",
                 "enter_action": havent_read_menu.display,
-                "type": "dir",
+                "type": "menu",
                 "take_action": self.take_action
             },
             {
                 "string": "All",
                 "enter_action": all_menu.display,
-                "type": "dir",
+                "type": "menu",
                 "take_action": self.take_action
             },
-            {
-                "string": "Delete a directory",
-                "enter_action": delete_dir_menu.display,
-                "type": "dir",
-                "take_action": self.take_action
-            },
-        ]
+        )
 
         self.main_menu = Menu("main", main_menu_items, self.menu_window)
 
     def open_ebook(self, ebook):
-        uri = os.path.join(ebook.folder, ebook.name)
-        self.change_ebook_status(ebook=ebook, status="Reading")
+        uri = ebook.get_path()
 
         cmd = "%s \"%s\" > /dev/null 2>&1" % (self.ebook_reader, uri)
-        if not os.system(cmd):
+        if os.system(cmd) < 0:
             msg = "Couldn't open %s" % uri
             logging.error(msg)
 
-        self.statusbar.print("Ebook added to Reading", curses.color_pair(4))
+        self.change_ebook_info(ebook=ebook, status=Ebook.STATUS_READING)
         self.kill_rerun_main_menu()
 
-    def change_ebook_status(self,
-                            status=None,
-                            fav=None,
-                            category=None,
-                            ebook=None,
-                            name=None):
+    def change_ebook_info(self,
+                          status=None,
+                          fav=None,
+                          category=None,
+                          ebook=None,
+                          name=None):
         if name:
             for i in self.ebooks:
                 if i.name == name:
@@ -459,18 +332,10 @@ class Epookman(object):
 
         if fav:
             ebook.toggle_fav()
-        elif status:
-            if status == Ebook.STATUS_HAVE_NOT_READ and ebook.status in [
-                    Ebook.STATUS_READING, Ebook.STATUS_HAVE_READ
-            ]:
-                ebook.status = Ebook.STATUS_HAVE_NOT_READ
-            if status == Ebook.STATUS_HAVE_READ and ebook.status in [
-                    Ebook.STATUS_HAVE_NOT_READ, Ebook.STATUS_READING
-            ]:
-                ebook.status = Ebook.STATUS_HAVE_READ
 
-            else:
-                ebook.set_status(status)
+        elif status:
+            ebook.set_status(status)
+
         elif category:
             ebook.set_category(category)
 
@@ -478,8 +343,8 @@ class Epookman(object):
             if i.name == ebook.name:
                 self.ebooks[index] = ebook
 
-        self.commit_ebooks_sql()
-        logging.debug("Changed ebook %s status to reading", ebook.name)
+        commit_ebook(self.conn, ebook)
+        status = ebook.get_status_string(status)
 
     def scane(self):
         mime = Mime()
@@ -495,60 +360,54 @@ class Epookman(object):
                     ebook.set_path(file)
                     self.ebooks.append(ebook)
 
-    def scane_commit(self):
+    def scane_commit(self, conn):
         self.statusbar.print("Scanning for ebooks...")
         self.scane()
 
-        self.update_db()
+        update_db(conn, self.dirs, self.ebooks)
         self.statusbar.print("Saving changes to database...")
 
         self.statusbar.print("Done.", curses.color_pair(4))
 
-    def take_action(self, key, name=None, value=None):
+    def take_action(self, key, args=None, value=None):
         if key == "scane":
-            self.scane_commit()
+            self.scane_commit(self.conn)
 
         elif key == "toggle_mark":
-            self.change_ebook_status(name=name, status=value)
-            if value == "have_read":
-                value = "Have read"
-            else:
-                value = "Haven't read"
-
+            args = args[0]
+            self.change_ebook_info(ebook=args, status=value)
+            value = Ebook.get_status_string(value)
             self.statusbar.print("Ebook marked as %s" % value,
                                  curses.color_pair(4))
 
         elif key == "toggle_fav":
-            self.change_ebook_status(name=name, fav=True)
-            self.statusbar.print("Ebook add to favorites toggled",
+            args = args[0]
+            self.change_ebook_info(ebook=args, fav=True)
+            self.statusbar.print("Toggled ebook favorite",
                                  curses.color_pair(4))
 
         elif key == "add_category":
-            self.change_ebook_status(name=name, category=value)
+            args = args[0]
+            self.change_ebook_info(ebook=args, category=value)
             self.statusbar.print("Ebook add to category %s" % value,
                                  curses.color_pair(4))
 
         elif key == "add_dir":
-            if name[0] == "~":
-                name = name.replace("~", os.getenv("HOME"))
-            if not check_path(name):
-                self.statusbar.print("Not a valid path", curses.color_pair(5))
-                return
+            self.input_add_dir()
 
-            Dir = Dirent(name)
-            self.addir(Dir)
-            self.scane_commit()
+        elif key == "del_dir":
+            args = args[0]
+            if self.statusbar.confirm(
+                    "Are you sure want to delete this directory? [y, n]: ",
+                    curses.color_pair(5)):
+                self.del_dir_refetch(self.conn, args)
 
         elif key == "print_status":
-            self.statusbar.print(name)
+            args = args[0]
+            self.statusbar.print(args)
 
-        self.commit_ebooks_sql()
-        self.commit_dirs_sql()
         self.kill_rerun_main_menu()
-
-    def update_db(self):
-        self.commit_dirs_sql()
-        self.commit_ebooks_sql()
+        self.statusbar.print("Press ? to show help.")
 
     def main(self):
         self.make_menus()

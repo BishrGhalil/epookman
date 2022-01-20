@@ -43,3 +43,16 @@ class Ebook():
 
     def set_category(self, category):
         self.category = category
+
+    def get_path(self):
+        uri = os.path.join(self.folder, self.name)
+        return uri
+
+    @classmethod
+    def get_status_string(cls, status):
+        if status == cls.STATUS_HAVE_NOT_READ:
+            return "Have not read"
+        elif status == cls.STATUS_HAVE_READ:
+            return "Have read"
+        elif status == cls.STATUS_READING:
+            return "Reading"

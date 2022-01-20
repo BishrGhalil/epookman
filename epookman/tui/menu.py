@@ -138,29 +138,27 @@ class Menu(UIElement):
                 self.search_navigate(query)
 
         elif key in Key.KEY_ADD:
-            string = self.input("Directory path: ")
-            if not string:
-                return 1
-            self.items[0]["take_action"](key="add_dir", name=string)
+            self.items[0]["take_action"](key="add_dir")
 
         elif key in Key.KEY_FAV:
             item = self.items[self.position]
             if item.get("type") != "ebook":
                 return 1
-            item["take_action"](key="toggle_fav", name=item["string"])
+            item["take_action"](key="toggle_fav", args=item["args"])
 
         elif key in Key.KEY_HAVE_READ:
             item = self.items[self.position]
             if item.get("type") == "ebook":
                 item["take_action"](key="toggle_mark",
-                                    name=item["string"],
+                                    args=item.get("args"),
                                     value=Ebook.STATUS_HAVE_READ)
+
         elif key in Key.KEY_HAVE_NOT_READ:
             item = self.items[self.position]
             if item.get("type") != "ebook":
                 return 1
             item["take_action"](key="toggle_mark",
-                                name=item["string"],
+                                args=item.get("args"),
                                 value=Ebook.STATUS_HAVE_NOT_READ)
 
         elif key in Key.KEY_SCANE:
@@ -173,8 +171,14 @@ class Menu(UIElement):
             if item.get("type") != "ebook":
                 return 1
             item["take_action"](key="add_category",
-                                name=item["string"],
+                                args=item.get("args"),
                                 value=category)
+
+        elif key in Key.KEY_DEL_DIR:
+            item = self.items[self.position]
+            if item.get("type") != "dir":
+                return 1
+            item["take_action"](key="del_dir", args=(item["string"], ))
 
     def init_window(self):
         self.window = self.stdscreen.subwin(0, 0)

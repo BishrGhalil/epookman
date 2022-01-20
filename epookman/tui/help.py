@@ -23,6 +23,7 @@ class Help(UIElement):
             ["gg", "Top of page"],
             ["G", "End of page"],
             ["a", "Add a directory"],
+            ["d", "Delete a directory"],
             ["f", "Toggle (add to favorite)"],
             ["r", "mark as 'have read'"],
             ["t", "mark as 'haven't read'"],

@@ -26,7 +26,7 @@ class EbookMetaData(UIElement):
         data.update(metadata)
 
         for index, key in enumerate(data.keys()):
-            msg = "%-10s\t%s" % (key, data.get(key))
+            msg = "%-20s\t%s" % (key, data.get(key))
             self.window.addstr(1 + index, 1, msg)
 
         self.window.refresh()

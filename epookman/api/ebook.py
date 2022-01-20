@@ -104,8 +104,13 @@ class Ebook():
 
     def get_meta_data(self):
         data = dict()
+
+        path = self.get_path()
+        size = os.stat(path)
+        size = "%.2f" % (size.st_size / (1024**2))
+        data["File Size"] = size
         if self.type == EBOOK_TYPE_PDF:
-            with open(self.get_path(), "rb") as file:
+            with open(path, "rb") as file:
                 pdfreader = PdfFileReader(file)
                 data["Encrypt"] = pdfreader.isEncrypted
                 if not data.get("Encrypt"):
@@ -116,12 +121,10 @@ class Ebook():
                     data["Creators"] = info.get('/Creator')
 
         if self.type == EBOOK_TYPE_EPUB:
-            tmp_data = epub_meta.get_epub_metadata(self.get_path(),
+            tmp_data = epub_meta.get_epub_metadata(path,
                                                    read_cover_image=False,
                                                    read_toc=False)
             data["Creators"] = tmp_data.authors
             data["Creation Date"] = tmp_data.publication_date
-            size = "%.2f" % (tmp_data.file_size_in_bytes / (1024 ** 2))
-            data["File Size"] = size
 
         return data

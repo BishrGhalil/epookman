@@ -96,7 +96,7 @@ def commit_dir(conn, Dir):
         VALUES \
         ((SELECT ID FROM DIRS WHERE PATH = ?), ?, ?);", data)
 
-    logging.debug(f"Dir: {data} Inserted to database")
+    logging.debug("Dir %s Inserted to database", Dir.path)
 
     conn.commit()
 

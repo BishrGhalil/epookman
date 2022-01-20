@@ -10,7 +10,6 @@
 # TODO: tests
 # TODO: command line arguments
 # FIXMEE: ebooks from sub dirs are deleted when deleting main dirs
-# FIXMEEEE: can't mark as have not read
 
 import curses
 import logging
@@ -107,10 +106,8 @@ class Epookman(object):
     def db_init(self, db_path):
         self.conn = connect(db_path)
         self.cur = self.conn.cursor()
-        logging.debug(f"Made connection to the database {self.db_path}")
 
         create_tables(self.conn)
-        logging.debug("Tables created")
 
     def db_fetch(self, conn):
 
@@ -333,7 +330,7 @@ class Epookman(object):
         if fav:
             ebook.toggle_fav()
 
-        elif status:
+        elif status != None:
             ebook.set_status(status)
 
         elif category:

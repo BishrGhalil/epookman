@@ -155,11 +155,10 @@ class Menu(UIElement):
 
         elif key in Key.KEY_HAVE_NOT_READ:
             item = self.items[self.position]
-            if item.get("type") != "ebook":
-                return 1
-            item["take_action"](key="toggle_mark",
-                                args=item.get("args"),
-                                value=Ebook.STATUS_HAVE_NOT_READ)
+            if item.get("type") == "ebook":
+                item["take_action"](key="toggle_mark",
+                                    args=item.get("args"),
+                                    value=Ebook.STATUS_HAVE_NOT_READ)
 
         elif key in Key.KEY_SCANE:
             item = self.items[self.position]

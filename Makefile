@@ -1,7 +1,7 @@
 all: install
 
 install:
-	sudo python setup.py install_exec install --optimize=1 --record=install_log.txt
+	sudo python setup.py install_exec install --optimize=1 --record=install_log.log
 	sudo chmod +x epookman.py
 	sudo cp epookman.py /usr/bin/epookman
 

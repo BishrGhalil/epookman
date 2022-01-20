@@ -16,8 +16,9 @@ import logging
 import os
 import re
 import sqlite3
-import sys
+import ss
 from time import sleep
+
 
 import magic
 
@@ -481,7 +482,6 @@ class Epookman(object):
         logging.debug("Changed ebook %s status to reading", ebook.name)
 
     def scane(self):
-        self.statusbar.print("Scanning for ebooks, Please wait.")
         mime = Mime()
         self.ebooks_files_init()
 
@@ -495,13 +495,18 @@ class Epookman(object):
                     ebook.set_path(file)
                     self.ebooks.append(ebook)
 
-        self.statusbar.print("Done.", curses.color_pair(4))
+    def scane_commit(self):
+        self.statusbar.print("Scanning for ebooks...")
+        self.scane()
 
         self.update_db()
+        self.statusbar.print("Saving changes to database...")
+
+        self.statusbar.print("Done.", curses.color_pair(4))
 
     def take_action(self, key, name=None, value=None):
         if key == "scane":
-            self.scane()
+            self.scane_commit()
 
         elif key == "toggle_mark":
             self.change_ebook_status(name=name, status=value)
@@ -532,7 +537,7 @@ class Epookman(object):
 
             Dir = Dirent(name)
             self.addir(Dir)
-            self.scane()
+            self.scane_commit()
 
         elif key == "print_status":
             self.statusbar.print(name)

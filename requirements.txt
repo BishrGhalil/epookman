@@ -1,3 +1,5 @@
 sqlalchemy
 file-magic
 curses-utils
+PyPDF2
+epub_meta

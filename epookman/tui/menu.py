@@ -13,6 +13,7 @@ from difflib import get_close_matches
 from epookman.api.ebook import Ebook
 from epookman.core.config import Config, Key
 from epookman.tui.help import Help
+from epookman.tui.ebook_metadata import EbookMetaData
 from epookman.tui.ui import UIElement
 
 
@@ -178,6 +179,15 @@ class Menu(UIElement):
             if item.get("type") != "dir":
                 return 1
             item["take_action"](key="del_dir", args=(item["string"], ))
+
+        elif key in Key.KEY_SHOW_META_DATA:
+            item = self.items[self.position]
+            args = item.get("args")
+            if not args:
+                return 1
+            ebook = args[0]
+            meta_data_screen = EbookMetaData(self.window)
+            meta_data_screen.display(ebook)
 
     def init_window(self):
         self.window = self.stdscreen.subwin(0, 0)

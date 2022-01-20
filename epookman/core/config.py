@@ -31,3 +31,4 @@ class Key:
     KEY_SCANE = (ord('u'), )
     KEY_ADD_CATEGORY = (ord('c'), )
     KEY_DEL_DIR = (ord('d'), )
+    KEY_SHOW_META_DATA = (ord('s'), )

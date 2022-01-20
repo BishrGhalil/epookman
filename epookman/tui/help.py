@@ -28,6 +28,7 @@ class Help(UIElement):
             ["r", "mark as 'have read'"],
             ["t", "mark as 'haven't read'"],
             ["u", "Update database (scane)"],
+            ["s", "Show ebook data"],
             ["q", "Quite"],
             ["/", "Search"],
             ["?", "Show help"],

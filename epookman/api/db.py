@@ -48,6 +48,7 @@ def create_ebooks_table(conn):
         "ID INTEGER PRIMARY KEY AUTOINCREMENT," \
         "FOLDER         TEXT    NOT NULL," \
         "NAME           TEXT    NOT NULL," \
+        "TYPE           INT    NOT NULL," \
         "CATEGORY       TEXT," \
         "STATUS         INT," \
         "FAV            INT);")
@@ -109,13 +110,13 @@ def commit_ebooks(conn, ebooks):
 
 def commit_ebook(conn, ebook):
     cur = conn.cursor()
-    data = (ebook.name, ebook.folder, ebook.name, ebook.category, ebook.status,
-            ebook.fav)
+    data = (ebook.name, ebook.folder, ebook.name, ebook.type, ebook.category,
+            ebook.status, ebook.fav)
     cur.execute(
         "INSERT OR REPLACE "\
         "INTO EBOOKS (ID, FOLDER, NAME, " \
-        "CATEGORY, STATUS, FAV) " \
-        "VALUES ((SELECT ID FROM EBOOKS WHERE NAME = ?), ?, ?, ?, ?, ?);",
+        "TYPE, CATEGORY, STATUS, FAV) " \
+        "VALUES ((SELECT ID FROM EBOOKS WHERE NAME = ?), ?, ?, ?, ?, ?, ?);",
         data)
 
     logging.debug(f"Ebook: {data} Inserted to database")
@@ -177,9 +178,10 @@ def fetch_ebooks(conn, key="*", where=None, sort_clause=None):
         else:
             ebook = Ebook(folder=row[1],
                           name=row[2],
-                          category=row[3],
-                          status=row[4],
-                          fav=row[5])
+                          ebook_type=row[3],
+                          category=row[4],
+                          status=row[5],
+                          fav=row[6])
             ebooks.append(ebook)
 
     return ebooks

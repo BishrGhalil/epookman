@@ -5,7 +5,6 @@
 # License: MIT, see the file "LICENCS" for details.
 
 # TODOO: Configuration file
-# TODOOO: print ebook details and meta data
 # TODO: Threads, for scane
 # TODO: tests
 # TODO: command line arguments
@@ -22,7 +21,7 @@ import magic
 from epookman.api.db import *
 from epookman.api.dirent import Dirent, check_path
 from epookman.api.ebook import Ebook
-from epookman.api.mime import MIME_TYPE_EBOOK, Mime
+from epookman.api.mime import Mime
 from epookman.core.config import Config
 from epookman.tui.menu import Menu
 from epookman.tui.statusbar import StatusBar
@@ -350,12 +349,14 @@ class Epookman(object):
         for Dir in self.dirs:
             Dir.getfiles()
             for file in Dir.files:
-                if mime.mime_type(
-                        file
-                ) == MIME_TYPE_EBOOK and file not in self.ebooks_files:
-                    ebook = Ebook()
-                    ebook.set_path(file)
-                    self.ebooks.append(ebook)
+                mime_type = mime.mime_type(file)
+                if mime_type:
+                    if mime.is_ebook(
+                            mime_type) and file not in self.ebooks_files:
+                        ebook = Ebook()
+                        ebook.set_path(file)
+                        ebook.set_type(mime_type)
+                        self.ebooks.append(ebook)
 
     def scane_commit(self, conn):
         self.statusbar.print("Scanning for ebooks...")

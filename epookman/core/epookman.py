@@ -3,6 +3,7 @@
 
 # This file is part of epookman, the console ebook manager.
 # License: MIT, see the file "LICENCS" for details.
+"""Epookman class and functions"""
 
 # TODOO: Configuration file
 # TODO: Threads, for scane
@@ -28,6 +29,7 @@ from epookman.tui.statusbar import StatusBar
 
 
 class Epookman(object):
+    """Epookman main class"""
 
     def __init__(self, stdscreen):
         self.db_name = "epookman.db"
@@ -36,7 +38,7 @@ class Epookman(object):
         self.db_init(self.db_path)
         self.db_fetch(self.conn)
 
-        self.ebooks_files = self.ebooks_files_init()
+        self.ebooks_files_init()
 
         self.main_menu = None
         self.screen = stdscreen

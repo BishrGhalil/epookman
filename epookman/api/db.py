@@ -5,7 +5,6 @@
 # License: MIT, see the file "LICENCS" for details.
 """Epookman database handling functions"""
 
-import logging
 import sqlite3
 
 from epookman.api.dirent import Dirent
@@ -14,15 +13,12 @@ from epookman.api.ebook import Ebook
 
 # Connect and Disconnect functions
 def connect(db_path):
-    logging.info("Connecting to database")
     conn = sqlite3.connect(db_path)
-    logging.info("Connected to database")
     return conn
 
 
 def close_connection(conn):
     conn.close()
-    logging.info("Connection to database has been closed.")
 
 
 # Create tables functions
@@ -36,7 +32,6 @@ def create_dirs_table(conn):
             "PATH           TEXT NOT NULL," \
             "RECURS         INT NOT NULL);"
     )
-    logging.debug("Table DIRS Created")
 
     conn.commit()
 
@@ -53,7 +48,6 @@ def create_ebooks_table(conn):
         "STATUS         INT," \
         "FAV            INT);")
 
-    logging.debug("Table Books Created")
     conn.commit()
 
 
@@ -64,7 +58,6 @@ def create_ebooks_index(conn, index_key):
         f"idx_{index_key.lower()} ON EBOOKS ({index_key.upper()});"
     )
 
-    logging.debug(f"Index on EBOOKS ({index_key.upper()}) Created")
     conn.commit()
 
 
@@ -97,7 +90,6 @@ def commit_dir(conn, Dir):
         VALUES \
         ((SELECT ID FROM DIRS WHERE PATH = ?), ?, ?);", data)
 
-    logging.debug("Dir %s Inserted to database", Dir.path)
 
     conn.commit()
 
@@ -119,24 +111,6 @@ def commit_ebook(conn, ebook):
         "VALUES ((SELECT ID FROM EBOOKS WHERE NAME = ?), ?, ?, ?, ?, ?, ?);",
         data)
 
-    logging.debug(f"Ebook: {data} Inserted to database")
-
-    conn.commit()
-
-
-def update_db(conn, dirs, ebooks):
-    commit_dirs(conn, dirs)
-    commit_ebooks(conn, ebooks)
-
-
-# Delete functions
-
-
-def del_dir(conn, path):
-    cur = conn.cursor()
-    cur.execute("DELETE FROM DIRS WHERE PATH=?;", (path, ))
-    conn.commit()
-    logging.debug("Dir %s has been deleted from database", path)
 
 
 def del_ebooks(conn, directory=None, name=None, category=None):
@@ -149,7 +123,6 @@ def del_ebooks(conn, directory=None, name=None, category=None):
         cur.execute(f"DELETE FROM EBOOKS WHERE CATEGORY LIKE '{category}';")
 
     conn.commit()
-    logging.debug("Books have been deleted from database")
 
 
 # Fetching functions

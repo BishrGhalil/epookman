@@ -8,7 +8,6 @@
 import curses
 import pdb
 from sys import argv
-import logging
 
 from epookman.core.epookman import Epookman
 
@@ -34,7 +33,6 @@ class Main(object):
         curses.curs_set(0)
 
         app = Epookman(self.screen)
-        logging.debug("Created Epookman object")
 
         app.main()
 

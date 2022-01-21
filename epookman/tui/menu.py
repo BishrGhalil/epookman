@@ -6,7 +6,6 @@
 """Menu class and api"""
 
 import curses
-import logging
 from curses import panel
 from difflib import get_close_matches
 

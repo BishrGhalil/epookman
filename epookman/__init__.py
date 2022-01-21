@@ -5,7 +5,6 @@
 
 import os
 from sys import version_info
-import epookman.data.log
 
 
 # Version helper
@@ -32,7 +31,7 @@ def version_helper():
 
 # Information
 __license__ = 'MIT'
-__version__ = '1.1.12'
+__version__ = '0.0.1'
 __release__ = False
 __author__ = __maintainer__ = 'Beshr Ghalil'
 __email__ = 'beshrghalil@porotonmail.com'

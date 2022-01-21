@@ -12,7 +12,6 @@
 # FIXMEE: ebooks from sub dirs are deleted when deleting main dirs
 
 import curses
-import logging
 import os
 import re
 from time import sleep
@@ -57,7 +56,6 @@ class Epookman(object):
             return True
 
         else:
-            logging.error("Not a valid Dirent object %s", Dir)
             return False
 
     def addir_commit(self, conn, Dir):
@@ -66,7 +64,7 @@ class Epookman(object):
 
     def addirs_commit(self, conn, uris):
         if not isinstance(uris, list) and not isinstance(uris, tuple):
-            logging.error("Not a valid list or tuple")
+            return
 
         else:
             for uri in uris:
@@ -113,10 +111,8 @@ class Epookman(object):
     def db_fetch(self, conn):
 
         self.dirs = fetch_dirs(conn)
-        logging.debug("Fetched dirs from database")
 
         self.ebooks = fetch_ebooks(conn)
-        logging.debug("Fetched ebooks from database")
 
     def input_add_dir(self):
         string = self.statusbar.input("Directory path: ")
@@ -126,7 +122,6 @@ class Epookman(object):
             string = string.replace("~", os.getenv("HOME"))
         string = os.path.realpath(string)
         if not check_path(string):
-            logging.error("Not a valid path %s", string)
             self.statusbar.print("Not a valid path", curses.color_pair(5))
             return
 
@@ -309,7 +304,6 @@ class Epookman(object):
         cmd = "%s \"%s\" > /dev/null 2>&1" % (self.ebook_reader, uri)
         if os.system(cmd) < 0:
             msg = "Couldn't open %s" % uri
-            logging.error(msg)
 
         self.change_ebook_info(ebook=ebook, status=Ebook.STATUS_READING)
         self.kill_rerun_main_menu()

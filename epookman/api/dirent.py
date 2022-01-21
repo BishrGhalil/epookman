@@ -5,7 +5,6 @@
 # License: MIT, see the file "LICENCS" for details.
 """File system scraper"""
 
-import logging
 import os
 from sys import stderr
 

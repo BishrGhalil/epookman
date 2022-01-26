@@ -22,23 +22,14 @@ class Mime():
     def __init__(self):
         self.mime = magic.open(magic.MAGIC_MIME)
         self.mime.load()
-        self.ebooks_types = {
-            "pdf": True,
-            "epub": True,
-            "mobi": True,
-            "xps": True,
-            "cbr": True,
-            "cbz": True
-        }
 
     def mime_type(self, file):
         mime_t = self.mime.file(file)
         return mime_t
 
     def is_ebook(self, mime_type):
-        mime_type = mime_type.split("/")[1]
-        mime_type = mime_type.split(";")[0]
-        if self.ebooks_types.get(mime_type):
+        ebooks_pattern = "application/(pdf|epub|mobi|xps|cbr|cbz); .*"
+        if re.search(ebooks_pattern, mime_type):
             return True
         else:
             return False

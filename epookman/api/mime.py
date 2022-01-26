@@ -8,7 +8,6 @@
 import re
 
 import magic
-import logging
 
 MIME_TYPE_EBOOK_PDF = 0
 MIME_TYPE_EBOOK_EPUB = 1
